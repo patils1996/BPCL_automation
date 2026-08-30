@@ -10,10 +10,10 @@
  */
 
 const CONFIG = {
-  API_KEY: 'CHANGE_THIS_KEY',
+  API_KEY: 'BPCL_Auto1312',
   DATA_SHEET: 'DayMonitoring',
   SNAPSHOT_SHEET: 'DayMonitoringSnapshots',
-  DRIVE_FOLDER: 'Automation Daily Archive',
+  DRIVE_FOLDER: 'BPCL Uptime Backups',
   DRIVE_FOLDER_ID: '1x3giWLl-yft4JiXrVwaJURbDi7UYkvG-'
 };
 
