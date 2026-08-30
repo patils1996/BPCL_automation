@@ -1,0 +1,13 @@
+# Ignore OS files
+Thumbs.db
+.DS_Store
+
+# Ignore test artifacts or backup files
+*.xlsx
+*.csv
+*.pyc
+__pycache__/
+*.log
+
+# Ignore local configuration files
+sync_config.json

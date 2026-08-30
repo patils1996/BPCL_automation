@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPCL Belgaum | Automation Uptime Dashboard</title>
+  
+  <!-- Inter Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Locally hosted JS Libraries for offline capability -->
+  <script src="xlsx.full.min.js"></script>
+  <script src="chart.umd.min.js"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-status-bar" content="#003F87">
+</head>
+<body>
+
+  <!-- Sidebar (Left) -->
+  <div class="sidebar">
+    <div class="sidebar-logo" title="Filter Settings">
+      BPCL <span>Belgaum</span>
+    </div>
+    <div class="sidebar-menu">
+      <div class="menu-item active" title="Dashboard" id="sidebar-dashboard-btn" onclick="switchSidebarTab('tab-overview')">
+        <!-- Speedometer/Dashboard SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+        View Dashboard
+      </div>
+      <div class="menu-item" title="Day Monitoring" id="sidebar-day-monitoring-btn" onclick="switchSidebarTab('tab-day-monitoring')">
+        <!-- Calendar/Clock SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        Day Monitoring
+      </div>
+      <div class="menu-item" title="Monitoring" id="sidebar-monitoring-btn" onclick="switchSidebarTab('tab-monitoring')">
+        <!-- Shield/Eye SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        Monitoring
+      </div>
+      <div class="menu-item" title="Performance Trend" id="sidebar-performance-trend-btn" onclick="switchSidebarTab('tab-performance-trend')">
+        <!-- Line Chart SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
+        Performance Trend
+      </div>
+      <div class="menu-item" title="Sales Areas" onclick="switchSidebarTab('tab-sales-area')">
+        <!-- Store/Building SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+        Sales Areas
+      </div>
+      <div class="menu-item" title="Vendor Summary" onclick="switchSidebarTab('tab-vendor-summary')">
+        <!-- Users/Vendor SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        Vendor Summary
+      </div>
+      <div class="menu-item" title="EO Summary" onclick="switchSidebarTab('tab-eo-summary')">
+        <!-- Shopping bag/Briefcase SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+        EO Summary
+      </div>
+      <div class="menu-item" title="SO Summary" onclick="switchSidebarTab('tab-so-summary')">
+        <!-- SO SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
+        SO Summary
+      </div>
+      <div class="menu-item" title="RO Explorer" onclick="switchSidebarTab('tab-ro-explorer')">
+        <!-- Document/Report SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        RO Explorer
+      </div>
+      <div class="menu-item" title="Mappings" onclick="switchSidebarTab('tab-mapping')">
+        <!-- Lightbulb SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .5 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"></path><line x1="9" y1="18" x2="15" y2="18"></line><line x1="10" y1="22" x2="14" y2="22"></line></svg>
+        Mappings Database
+      </div>
+    </div>
+  </div>
+
+  <!-- App Main Container -->
+  <div class="app-container">
+    
+    <!-- Header -->
+    <header>
+      <button id="btn-menu-toggle" style="display: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; border: none; background: var(--bg-primary); box-shadow: var(--shadow-raised-sm); cursor: pointer; margin-right: 0.75rem; flex-shrink: 0; color: var(--text-primary);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="header-title-container">
+        <div class="header-text">
+          <h1>BPCL Belgaum Territory <span>Dashboard</span></h1>
+          <p id="app-subtitle">Belgaum, India - Automation Monitoring Daily Dashboard</p>
+          <div id="app-datetime" class="header-datetime"></div>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <!-- User Profile RBAC Widget -->
+        <div id="user-profile-widget" style="display: none; align-items: center; gap: 0.75rem; margin-right: 1rem;">
+          <span class="user-badge" id="user-profile-badge" style="font-size: 0.72rem; font-weight: 800; padding: 0.2rem 0.5rem; border-radius: 6px; text-transform: uppercase;">Admin</span>
+          <span class="user-name-text" id="user-profile-name" style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary);"></span>
+          <button class="btn-primary" id="btn-logout" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; margin: 0; line-height: 1.2; box-shadow: var(--shadow-raised-sm);">Logout</button>
+        </div>
+
+        <!-- Right side badge matching mockup "500 orders" -->
+        <div class="header-logo-brand" id="header-outlets-badge">
+          368 Outlets
+        </div>
+        
+        <span id="file-meta" style="font-size: 0.8rem; color: var(--text-muted); display: none;"></span>
+        
+        <!-- Sync Google Sheet Button -->
+        <div style="display: inline-flex; flex-direction: column; align-items: center; gap: 0.2rem; margin-right: 0.5rem;">
+          <button class="btn-primary" id="btn-sync-sheet" style="display: none; padding: 0.5rem 1rem; align-items: center; gap: 0.5rem; margin: 0; background-color: var(--accent-teal); box-shadow: var(--shadow-raised-sm);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Sync Sheet
+          </button>
+          <span id="link-setup-sheet" style="display: none; font-size: 0.62rem; color: var(--text-muted); cursor: pointer; text-decoration: underline;">Configure Link</span>
+        </div>
+
+        <!-- Upload File Trigger -->
+        <div class="file-input-wrapper" id="header-upload-wrapper" style="display: none;">
+          <button class="upload-btn-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Upload Data
+          </button>
+          <input type="file" id="header-file-input" accept=".xlsx, .xls, .csv">
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+      
+      <!-- Upload Dropzone (Visible when no file is loaded) -->
+      <div id="upload-landing-view" class="upload-card-container">
+        <div class="upload-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </div>
+        <div class="upload-instructions">
+          <h2>Upload Monitoring Data</h2>
+          <p>Drag and drop your automation raw data Excel (.xlsx, .xls) or CSV export file here</p>
+          <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+            Note: If your sheet contains an "EO-SO Map" tab, mappings will auto-update.
+          </p>
+        </div>
+        <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
+          <div class="file-input-wrapper">
+            <button class="browse-btn">Browse Files</button>
+            <input type="file" id="main-file-input" accept=".xlsx, .xls, .csv">
+          </div>
+          <button class="browse-btn" id="btn-sync-sheet-landing" style="background-color: var(--accent-teal); color: white; display: inline-flex; align-items: center; gap: 0.5rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            Sync Google Sheet
+          </button>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); cursor: pointer; text-decoration: underline; margin-top: 0.5rem;" id="link-setup-sheet-landing">Configure Google Sheet Link</div>
+        <div class="sample-download" id="load-sample-btn" style="margin-top: 1rem;">Or load sample spreadsheet data</div>
+      </div>
+
+      <!-- Active Dashboard View -->
+      <div id="dashboard-active-view" style="display: none; flex-direction: column; gap: 1.25rem; width: 100%;">
+        
+        <!-- Tab Content Panels -->
+
+        <!-- TAB 1: OVERVIEW -->
+        <div class="tab-panel active" id="tab-overview">
+          
+          <!-- Automation Overview Section -->
+          <div id="automation-overview-sec" style="width: 100%;">
+            <!-- Mockup Style 7 KPI Cards Row -->
+            <div class="kpi-row">
+              <!-- Card 1: Orange (Total Outlets) -->
+              <div class="kpi-card card-orange">
+                <div class="kpi-label">Total Outlets</div>
+                <div class="kpi-value" id="kpi-total-ros" onclick="openKpiDetailsModal('total')">-</div>
+              </div>
+
+              <!-- Card 2: Green (Fully Online) -->
+              <div class="kpi-card card-green">
+                <div class="kpi-label">Fully Online</div>
+                <div class="kpi-value" id="kpi-fully-online" onclick="openKpiDetailsModal('fully')">-</div>
+              </div>
+              
+              <!-- Card 3: Purple (Partially Online) -->
+              <div class="kpi-card card-purple">
+                <div class="kpi-label">Partially Online</div>
+                <div class="kpi-value" id="kpi-partially-online" onclick="openKpiDetailsModal('partially')">-</div>
+              </div>
+
+              <!-- Card 4: Red/Pink (Offline Outlets) -->
+              <div class="kpi-card card-red">
+                <div class="kpi-label">Offline Outlets</div>
+                <div class="kpi-value" id="kpi-offline" onclick="openKpiDetailsModal('offline')">-</div>
+              </div>
+              
+              <!-- Card 5: Blue (MPD Uptime) -->
+              <div class="kpi-card card-blue">
+                <div class="kpi-label">MPD Uptime</div>
+                <div class="kpi-value" id="kpi-mpd-uptime" onclick="openKpiDetailsModal('mpd')">-</div>
+              </div>
+              
+              <!-- Card 6: Teal (Tank Uptime) -->
+              <div class="kpi-card card-teal">
+                <div class="kpi-label">Tank Uptime</div>
+                <div class="kpi-value" id="kpi-tank-uptime" onclick="openKpiDetailsModal('tank')">-</div>
+              </div>
+
+              <!-- Card 7: Indigo (Territory Uptime) -->
+              <div class="kpi-card card-indigo">
+                <div class="kpi-label">Territory Uptime</div>
+                <div class="kpi-value" id="kpi-territory-uptime" onclick="openKpiDetailsModal('territory')">-</div>
+              </div>
+
+              <!-- Card 8: Pink (Auto RSP %) -->
+              <div class="kpi-card card-pink">
+                <div class="kpi-label">Auto RSP %</div>
+                <div class="kpi-value" id="kpi-auto-rsp" onclick="openKpiDetailsModal('autorsp')">-</div>
+              </div>
+            </div>
+
+            <!-- 3-Column Layout from Mockup -->
+            <div class="dashboard-grid-layout">
+              
+              <!-- Left Column: Horizontal Bar Charts -->
+              <div class="col-left">
+                <!-- Card: Sales Area Trend -->
+                <div class="panel-card">
+                  <div class="panel-card-header">
+                    <span class="panel-card-title">Sales Area Performance</span>
+                    <span class="panel-card-subtitle">Uptime Trend</span>
+                  </div>
+                  <div class="chart-canvas-container">
+                    <canvas id="sales-area-bar-chart"></canvas>
+                  </div>
+                </div>
+                
+                <!-- Card: Top EOs -->
+                <div class="panel-card">
+                  <div class="panel-card-header">
+                    <span class="panel-card-title">Executive Officers (EO)</span>
+                    <span class="panel-card-subtitle">Uptime Performance</span>
+                  </div>
+                  <div class="chart-canvas-container" style="height: 160px;">
+                    <canvas id="eo-horizontal-chart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Card: Top SOs -->
+                <div class="panel-card">
+                  <div class="panel-card-header">
+                    <span class="panel-card-title">Sales Officers (SO)</span>
+                    <span class="panel-card-subtitle">Uptime Performance</span>
+                  </div>
+                  <div class="chart-canvas-container" style="height: 160px;">
+                    <canvas id="so-horizontal-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Center Column: Vertical Comparison & Doughnuts -->
+              <div class="col-center">
+                <!-- Card: MPD vs Tank Comparison -->
+                <div class="panel-card">
+                  <div class="panel-card-header">
+                    <span class="panel-card-title">Equipment Performance Summary</span>
+                    <span class="panel-card-subtitle">MPD vs Tank Uptime</span>
+                  </div>
+                  <div class="chart-canvas-container" style="height: 250px;">
+                    <canvas id="equipment-comp-chart"></canvas>
+                  </div>
+                </div>
+
+                <!-- Card: Doughnut Uptime Breakdown -->
+                <div class="panel-card">
+                  <div class="panel-card-header">
+                    <span class="panel-card-title">RO Uptime Status Distribution</span>
+                    <span class="panel-card-subtitle">Outlets Status Breakdown</span>
+                  </div>
+                  <div class="chart-canvas-container" style="height: 250px; display: flex; align-items: center; justify-content: center;">
+                    <canvas id="status-doughnut-chart"></canvas>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right Column: Interactive Filter Panel -->
+              <div class="col-right">
+                <button class="filter-pill reset-btn" id="filter-reset-global-btn" onclick="resetGlobalDashboardFilters()" style="width: 100%; text-align: center; justify-content: center; padding: 0.5rem; margin-bottom: 0.5rem; display: none;">
+                  Reset Dashboard Filters
+                </button>
+
+                <!-- Filter Card: Sales Area -->
+                <div class="filter-card">
+                  <div class="filter-card-title">Sales Areas</div>
+                  <div class="filter-items-container" id="dash-filter-areas">
+                    <!-- Inserted dynamically -->
+                  </div>
+                </div>
+
+                <!-- Filter Card: EOs -->
+                <div class="filter-card">
+                  <div class="filter-card-title">Executive Officers</div>
+                  <div class="filter-items-container" id="dash-filter-eos">
+                    <!-- Inserted dynamically -->
+                  </div>
+                </div>
+
+                <!-- Filter Card: Vendors -->
+                <div class="filter-card">
+                  <div class="filter-card-title">Vendors</div>
+                  <div class="filter-items-container" id="dash-filter-vendors">
+                    <!-- Inserted dynamically -->
+                  </div>
+                </div>
+
+                <!-- Filter Card: Status -->
+                <div class="filter-card">
+                  <div class="filter-card-title">Uptime Status</div>
+                  <div class="filter-items-container" id="dash-filter-status">
+                    <!-- Inserted dynamically -->
+                  </div>
+                </div>
+
+                <!-- Filter Card: Technology -->
+                <div class="filter-card">
+                  <div class="filter-card-title">Technology (IOT/WFCC)</div>
+                  <div class="filter-items-container" id="dash-filter-technology">
+                    <!-- Inserted dynamically -->
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- EVCS Overview Section -->
+          <div id="evcs-overview-sec" style="display: none; width: 100%;">
+            <!-- EVCS KPI Metrics Row (5 columns) -->
+            <div class="kpi-row" style="grid-template-columns: repeat(5, minmax(0, 1fr));">
+              <!-- Card 1: Total Chargers -->
+              <div class="kpi-card card-orange" style="border-left: 4px solid #f68b1e;">
+                <div class="kpi-label">TOTAL CHARGERS</div>
+                <div class="kpi-value" id="evcs-kpi-total" onclick="openEvcsDetailsModal('total')">-</div>
+                <div class="kpi-subtext" id="evcs-kpi-total-sub">Source: charger_status.xlsx</div>
+              </div>
+              <!-- Card 2: Online Chargers -->
+              <div class="kpi-card card-green" style="border-left: 4px solid #10b981;">
+                <div class="kpi-label">ONLINE CHARGERS</div>
+                <div class="kpi-value" id="evcs-kpi-online" onclick="openEvcsDetailsModal('online')">-</div>
+                <div class="kpi-subtext" id="evcs-kpi-online-sub">-</div>
+              </div>
+              <!-- Card 3: Offline Chargers -->
+              <div class="kpi-card card-red" style="border-left: 4px solid #ef4444;">
+                <div class="kpi-label">OFFLINE CHARGERS</div>
+                <div class="kpi-value" id="evcs-kpi-offline" onclick="openEvcsDetailsModal('offline')">-</div>
+                <div class="kpi-subtext" id="evcs-kpi-offline-sub">-</div>
+              </div>
+              <!-- Card 4: FAME Chargers -->
+              <div class="kpi-card card-blue" style="border-left: 4px solid #3b82f6;">
+                <div class="kpi-label">FAME CHARGERS</div>
+                <div class="kpi-value" id="evcs-kpi-fame" onclick="openEvcsDetailsModal('fame')">-</div>
+                <div class="kpi-subtext" id="evcs-kpi-fame-sub">-</div>
+              </div>
+              <!-- Card 5: Non Fame Chargers -->
+              <div class="kpi-card card-purple" style="border-left: 4px solid #8b5cf6;">
+                <div class="kpi-label">NON FAME CHARGERS</div>
+                <div class="kpi-value" id="evcs-kpi-nonfame" onclick="openEvcsDetailsModal('nonfame')">-</div>
+                <div class="kpi-subtext" id="evcs-kpi-nonfame-sub">-</div>
+              </div>
+            </div>
+
+            <!-- EVCS Charts Row (3-column layout) -->
+            <div class="dashboard-grid-layout" style="grid-template-columns: 1fr 1.3fr 1.3fr; gap: 1.5rem; margin-top: 1.5rem;">
+              <!-- Col 1: Overall Online Ratio (Doughnut) -->
+              <div class="panel-card">
+                <div class="panel-card-header" style="border-left: 4px solid #f68b1e; padding-left: 0.75rem;">
+                  <span class="panel-card-title" style="font-weight: 700; color: #1a202c; font-size: 1.1rem;">Overall Online Ratio</span>
+                </div>
+                <div class="chart-canvas-container" style="height: 300px; margin-top: 1rem; display: flex; align-items: center; justify-content: center;">
+                  <canvas id="evcs-ratio-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Col 2: Territory EO (Grouped Bar Chart) -->
+              <div class="panel-card">
+                <div class="panel-card-header" style="border-left: 4px solid #f68b1e; padding-left: 0.75rem;">
+                  <span class="panel-card-title" style="font-weight: 700; color: #1a202c; font-size: 1.1rem;">Territory EO</span>
+                </div>
+                <div class="chart-canvas-container" style="height: 300px; margin-top: 1rem;">
+                  <canvas id="evcs-eo-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Col 3: Sales Officers (Grouped Bar Chart) -->
+              <div class="panel-card">
+                <div class="panel-card-header" style="border-left: 4px solid #f68b1e; padding-left: 0.75rem;">
+                  <span class="panel-card-title" style="font-weight: 700; color: #1a202c; font-size: 1.1rem;">Sales Officers</span>
+                </div>
+                <div class="chart-canvas-container" style="height: 300px; margin-top: 1rem;">
+                  <canvas id="evcs-so-chart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- TAB: DAY MONITORING -->
+        <div class="tab-panel" id="tab-day-monitoring">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>Day Monitoring (Offline & Partially Online Sites)</h3>
+              <div class="search-filter-controls">
+                <input type="text" class="search-input" id="day-search-input" placeholder="Search by ROID, name, EO, SO...">
+                <button class="btn-primary" id="export-day-monitoring-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export Day Monitoring
+                </button>
+                <button class="btn-primary" id="save-day-monitoring-drive-btn" title="Save today's Day Monitoring data to the shared Google Drive archive">
+                  <span style="font-size:14px;">☁</span> Save Daily Data to Drive
+                </button>
+              </div>
+            </div>
+            <div id="day-monitoring-cloud-status" style="font-size:0.78rem; margin:0 1rem 0.5rem; opacity:0.75;">Shared Day Monitoring: cloud sync enabled (with offline fallback).</div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="day-monitoring-table">
+                <thead>
+                  <tr>
+                    <th>ROID</th>
+                    <th>Retail Outlet</th>
+                    <th>
+                      Sales Area
+                      <select id="day-filter-area" class="header-filter-select">
+                        <option value="">All</option>
+                      </select>
+                    </th>
+                    <th>
+                      Vendor
+                      <select id="day-filter-vendor" class="header-filter-select">
+                        <option value="">All</option>
+                      </select>
+                    </th>
+                    <th>Uptime %</th>
+                    <th>
+                      Status
+                      <select id="day-filter-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Offline">Offline</option>
+                        <option value="Partially Online">Partially Online</option>
+                      </select>
+                    </th>
+                    <th>
+                      IOT/WFCC
+                      <select id="day-filter-tech" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="IOT">IOT</option>
+                        <option value="WFCC">WFCC</option>
+                      </select>
+                    </th>
+                    <th>
+                      Responsibility
+                      <select id="day-filter-resp" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="DEALER">DEALER</option>
+                        <option value="BPCL">BPCL</option>
+                        <option value="RA VENDOR">RA VENDOR</option>
+                        <option value="VENDOR">VENDOR</option>
+                      </select>
+                    </th>
+                    <th>Complaint Remarks</th>
+                    <th>Offline MPD(s)</th>
+                    <th>Offline Tank(s)</th>
+                  </tr>
+                </thead>
+                <tbody id="day-monitoring-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: MONITORING (STATUS COMPARISON) -->
+        <div class="tab-panel" id="tab-monitoring">
+          <div class="table-card">
+            <div class="table-card-header" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <h3>Monitoring (Status Comparison)</h3>
+                <button class="btn-primary" id="export-monitoring-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export Comparison
+                </button>
+              </div>
+              
+              <!-- Baseline Selector Controls -->
+              <div style="display: flex; gap: 1.5rem; align-items: center; background: var(--bg-primary); padding: 0.75rem 1rem; border-radius: 12px; width: 100%; box-shadow: var(--shadow-inset-sm);">
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                  <label for="mon-baseline-select" style="font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Compare Against (Baseline)</label>
+                  <select id="mon-baseline-select" class="form-control" style="font-size: 0.8rem; font-weight: 600; padding: 4px 8px; width: 320px; cursor: pointer;"></select>
+                </div>
+                <div id="mon-baseline-info" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary); margin-top: 1rem;">
+                  Loading baseline info...
+                </div>
+              </div>
+
+              <!-- Filter Controls -->
+              <div class="filter-row" style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-top: 0.5rem; align-items: center;">
+                <button class="filter-pill active" id="mon-filter-all">All Sites</button>
+                <button class="filter-pill" id="mon-filter-drops">Status Drops Only (Recommended)</button>
+                <button class="filter-pill" id="mon-filter-upgrades">Status Improvements</button>
+                <button class="filter-pill" id="mon-filter-changes">All Changes</button>
+                
+                <input type="text" class="search-input" id="mon-search-input" placeholder="Search by ROID, name, sales area, vendor..." style="margin-left: auto; max-width: 250px; font-size: 0.8rem; height: 32px;">
+              </div>
+            </div>
+            
+            <div class="table-responsive-container">
+              <table class="data-table" id="monitoring-comparison-table">
+                <thead>
+                  <tr>
+                    <th>ROID</th>
+                    <th>Retail Outlet</th>
+                    <th>
+                      Sales Area
+                      <select id="mon-filter-area-select" class="header-filter-select">
+                        <option value="">All</option>
+                      </select>
+                    </th>
+                    <th>
+                      Vendor
+                      <select id="mon-filter-vendor-select" class="header-filter-select">
+                        <option value="">All</option>
+                      </select>
+                    </th>
+                    <th>
+                      MST
+                      <select id="mon-filter-mst-select" class="header-filter-select">
+                        <option value="">All</option>
+                      </select>
+                    </th>
+                    <th>
+                      Yesterday Status
+                      <select id="mon-filter-base-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Fully Online">Fully Online</option>
+                        <option value="Partially Online">Partially Online</option>
+                        <option value="Offline">Offline</option>
+                      </select>
+                    </th>
+                    <th>
+                      Current Status
+                      <select id="mon-filter-curr-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Fully Online">Fully Online</option>
+                        <option value="Partially Online">Partially Online</option>
+                        <option value="Offline">Offline</option>
+                      </select>
+                    </th>
+                    <th style="text-align: center;">
+                      Change Status
+                      <select id="mon-filter-change-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Drop">Drop</option>
+                        <option value="Improvement">Improvement</option>
+                        <option value="Unchanged">Unchanged</option>
+                      </select>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="monitoring-comparison-tbody">
+                  <tr><td colspan="8" style="text-align: center; padding: 2rem;">No data loaded. Please upload monitoring spreadsheet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: SALES AREAS -->
+        <div class="tab-panel" id="tab-sales-area">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>Sales Area Wise Performance</h3>
+              <button class="btn-secondary" id="export-sales-area-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="sales-area-table">
+                <thead>
+                  <tr>
+                    <th>Sales Area</th>
+                    <th>Total ROs</th>
+                    <th>Fully Online</th>
+                    <th>Partially Online</th>
+                    <th>Offline</th>
+                    <th>Onbd MPDs</th>
+                    <th>Online MPDs</th>
+                    <th>MPD Uptime %</th>
+                    <th>Onbd Tanks</th>
+                    <th>Online Tanks</th>
+                    <th>Tank Uptime %</th>
+                    <th>AVG Uptime</th>
+                    <th>Offline MPDs</th>
+                    <th>Offline Tanks</th>
+                  </tr>
+                </thead>
+                <tbody id="sales-area-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: VENDOR SUMMARY -->
+        <div class="tab-panel" id="tab-vendor-summary">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>Vendor Wise Performance</h3>
+              <button class="btn-secondary" id="export-vendor-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="vendor-table">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Total ROs</th>
+                    <th>Fully Online</th>
+                    <th>Partially Online</th>
+                    <th>Offline</th>
+                    <th>Onbd MPDs</th>
+                    <th>Online MPDs</th>
+                    <th>MPD Uptime %</th>
+                    <th>Onbd Tanks</th>
+                    <th>Online Tanks</th>
+                    <th>Tank Uptime %</th>
+                    <th>AVG Uptime</th>
+                    <th>Offline MPDs</th>
+                    <th>Offline Tanks</th>
+                  </tr>
+                </thead>
+                <tbody id="vendor-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: EO SUMMARIES -->
+        <div class="tab-panel" id="tab-eo-summary">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>EO Wise Uptime Summary</h3>
+              <button class="btn-secondary" id="export-eo-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="eo-table">
+                <thead>
+                  <tr>
+                    <th>EO Name</th>
+                    <th>Total ROs</th>
+                    <th>Fully Online</th>
+                    <th>Partially Online</th>
+                    <th>Offline</th>
+                    <th>Onbd MPDs</th>
+                    <th>Online MPDs</th>
+                    <th>MPD Uptime %</th>
+                    <th>Onbd Tanks</th>
+                    <th>Online Tanks</th>
+                    <th>Tank Uptime %</th>
+                    <th>AVG Uptime</th>
+                    <th>Offline MPDs</th>
+                    <th>Offline Tanks</th>
+                  </tr>
+                </thead>
+                <tbody id="eo-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: SO SUMMARIES -->
+        <div class="tab-panel" id="tab-so-summary">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>SO Wise Uptime Summary</h3>
+              <button class="btn-secondary" id="export-so-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="so-table">
+                <thead>
+                  <tr>
+                    <th>SO Name</th>
+                    <th>Total ROs</th>
+                    <th>Fully Online</th>
+                    <th>Partially Online</th>
+                    <th>Offline</th>
+                    <th>Onbd MPDs</th>
+                    <th>Online MPDs</th>
+                    <th>MPD Uptime %</th>
+                    <th>Onbd Tanks</th>
+                    <th>Online Tanks</th>
+                    <th>Tank Uptime %</th>
+                    <th>AVG Uptime</th>
+                    <th>Offline MPDs</th>
+                    <th>Offline Tanks</th>
+                  </tr>
+                </thead>
+                <tbody id="so-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 5: RO EXPLORER -->
+        <div class="tab-panel" id="tab-ro-explorer">
+          <div class="table-card">
+            <div class="table-card-header">
+              <h3>Retail Outlet Explorer</h3>
+              <div class="search-filter-controls">
+                <input type="text" class="search-input" id="ro-search-input" placeholder="Search by ROID, Name, EO, RA Vendor, MST...">
+                
+                <select class="filter-select" id="ro-filter-status">
+                  <option value="">All Statuses</option>
+                  <option value="Fully Online">Fully Online</option>
+                  <option value="Partially Online">Partially Online</option>
+                  <option value="Offline">Offline</option>
+                </select>
+
+                <select class="filter-select" id="ro-filter-nano">
+                  <option value="">All NANO Statuses</option>
+                  <!-- Filled dynamically -->
+                </select>
+
+                <select class="filter-select" id="ro-filter-area">
+                  <option value="">All Sales Areas</option>
+                  <!-- Filled dynamically -->
+                </select>
+
+                <select class="filter-select" id="ro-filter-technology">
+                  <option value="">All Technologies</option>
+                  <option value="IOT">IOT Only</option>
+                  <option value="WFCC">WFCC Only</option>
+                </select>
+
+                <button class="btn-secondary" id="export-ro-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export CSV
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive-container">
+              <table class="data-table" id="ro-explorer-table">
+                <thead>
+                  <tr>
+                    <th data-sort="roid">ROID</th>
+                    <th data-sort="outlet_name">Retail Outlet</th>
+                    <th data-sort="sales_area">Sales Area</th>
+                    <th data-sort="eo_name">EO Name</th>
+                    <th data-sort="vendor">RA Vendor</th>
+                    <th data-sort="mst_name">MST Name</th>
+                    <th data-sort="auto_rsp">Auto RSP</th>
+                    <th data-sort="onb_mpd">Onbd MPD</th>
+                    <th data-sort="onl_mpd">Online MPD</th>
+                    <th data-sort="onb_tnk">Onbd Tank</th>
+                    <th data-sort="onl_tnk">Online Tank</th>
+                    <th data-sort="tot_onb">Total Onbd</th>
+                    <th data-sort="tot_onl">Total Online</th>
+                    <th data-sort="uptime">Uptime %</th>
+                    <th data-sort="status">Status</th>
+                    <th data-sort="off_mpd">Offline MPD</th>
+                    <th data-sort="off_tnk">Offline Tank</th>
+                    <th data-sort="nano_status">NANO Status (Condition)</th>
+                  </tr>
+                </thead>
+                <tbody id="ro-explorer-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination-container">
+              <div id="ro-pagination-info">Showing 0 to 0 of 0 entries</div>
+              <div class="pagination-btn-group" id="ro-pagination-btns">
+                <!-- Inserted Dynamically -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 6: MAPPINGS -->
+        <div class="tab-panel" id="tab-mapping">
+          <div class="mapping-editor-grid">
+            <!-- Form -->
+            <div class="mapping-form">
+              <h4>Add / Update Mapping</h4>
+              <form id="mapping-entry-form">
+                <div class="form-group">
+                  <label for="map-roid">ROID *</label>
+                  <input type="number" id="map-roid" class="form-control" placeholder="e.g. 116218" required>
+                </div>
+                <div class="form-group">
+                  <label for="map-outlet">Retail Outlet Name *</label>
+                  <input type="text" id="map-outlet" class="form-control" placeholder="e.g. ALTRADE AGENCIES" required>
+                </div>
+                <div class="form-group">
+                  <label for="map-eo">EO Name *</label>
+                  <input type="text" id="map-eo" class="form-control" list="eo-datalist" placeholder="Select or type..." required>
+                  <datalist id="eo-datalist">
+                    <option value="Vasa Nagamallik"></option>
+                    <option value="Bhupesh Bajiya"></option>
+                    <option value="Sourabh Paul"></option>
+                  </datalist>
+                </div>
+                <div class="form-group">
+                  <label for="map-so">SO Name *</label>
+                  <input type="text" id="map-so" class="form-control" list="so-datalist" placeholder="Select or type..." required>
+                  <datalist id="so-datalist">
+                    <option value="Vinit S"></option>
+                    <option value="Jaydip C"></option>
+                    <option value="Spandan P"></option>
+                    <option value="Saigiridhar K"></option>
+                    <option value="Muthukumar M"></option>
+                  </datalist>
+                </div>
+                <div class="form-group">
+                  <label for="map-mst">MST Name</label>
+                  <input type="text" id="map-mst" class="form-control" placeholder="e.g. Sanjay Korvi">
+                </div>
+                <div class="form-group">
+                  <label for="map-group">Sales Group</label>
+                  <input type="text" id="map-group" class="form-control" placeholder="e.g. 235">
+                </div>
+                <div class="form-actions">
+                  <button type="submit" class="btn-primary">Save Mapping</button>
+                  <button type="button" class="btn-secondary" id="map-clear-btn">Clear</button>
+                </div>
+              </form>
+              <div class="info-banner" style="margin-top: 1rem;">
+                <span class="info-banner-icon">ℹ</span>
+                <div>
+                  Updating a mapping here will refresh calculations for active data matching this ROID.
+                </div>
+              </div>
+            </div>
+            
+            <!-- Database Table -->
+            <div class="table-card">
+              <div class="table-card-header">
+                <h3>EO-SO Mapping Database</h3>
+                <div class="search-filter-controls">
+                  <input type="text" class="search-input" id="map-search-input" placeholder="Search mappings...">
+                  
+                  <div class="file-input-wrapper">
+                    <button class="btn-secondary">Import Mappings</button>
+                    <input type="file" id="map-import-input" accept=".xlsx, .xls, .csv">
+                  </div>
+                  
+                  <button class="btn-secondary" id="map-reset-btn" title="Reset mappings to standard database">
+                    Reset Default
+                  </button>
+                </div>
+              </div>
+              <div class="table-responsive-container">
+                <table class="data-table" id="mapping-table">
+                  <thead>
+                    <tr>
+                      <th data-mapsort="roid">ROID</th>
+                      <th data-mapsort="outlet_name">Retail Outlet</th>
+                      <th data-mapsort="eo_name">EO Name</th>
+                      <th data-mapsort="sales_group">Sales Group</th>
+                      <th data-mapsort="so_name">SO Name</th>
+                      <th data-mapsort="mst_name">MST Name</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="mapping-tbody">
+                    <!-- Inserted Dynamically -->
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination-container">
+                <div id="map-pagination-info">Showing 0 to 0 of 0 entries</div>
+                <div class="pagination-btn-group" id="map-pagination-btns">
+                  <!-- Inserted Dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: PERFORMANCE TREND -->
+        <div class="tab-panel" id="tab-performance-trend">
+          <!-- Yesterday vs Today Comparison Grid -->
+          <div class="comparison-row">
+            <!-- Card 1: Territory Uptime -->
+            <div class="comp-card">
+              <div class="comp-label">Territory Uptime</div>
+              <div class="comp-values">
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Yesterday (Day End)</span>
+                  <span class="comp-val-num" id="comp-uptime-yesterday">-</span>
+                </div>
+                <div class="comp-val-divider"></div>
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Today (Latest)</span>
+                  <span class="comp-val-num" id="comp-uptime-today">-</span>
+                </div>
+              </div>
+              <div class="comp-trend" id="comp-uptime-trend">-</div>
+            </div>
+            
+            <!-- Card 2: Fully Online Outlets -->
+            <div class="comp-card">
+              <div class="comp-label">Fully Online Outlets</div>
+              <div class="comp-values">
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Yesterday (Day End)</span>
+                  <span class="comp-val-num" id="comp-online-yesterday">-</span>
+                </div>
+                <div class="comp-val-divider"></div>
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Today (Latest)</span>
+                  <span class="comp-val-num" id="comp-online-today">-</span>
+                </div>
+              </div>
+              <div class="comp-trend" id="comp-online-trend">-</div>
+            </div>
+
+            <!-- Card 3: Offline Outlets -->
+            <div class="comp-card">
+              <div class="comp-label">Offline Outlets</div>
+              <div class="comp-values">
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Yesterday (Day End)</span>
+                  <span class="comp-val-num" id="comp-offline-yesterday">-</span>
+                </div>
+                <div class="comp-val-divider"></div>
+                <div class="comp-val-group">
+                  <span class="comp-val-label">Today (Latest)</span>
+                  <span class="comp-val-num" id="comp-offline-today">-</span>
+                </div>
+              </div>
+              <div class="comp-trend" id="comp-offline-trend">-</div>
+            </div>
+          </div>
+
+          <!-- Archive setup and main visual layouts -->
+          <div class="trend-grid-layout">
+            <!-- Left Panel: Archive Folder & Uploads list -->
+            <div class="trend-col-left">
+              <!-- Folder Setup Card -->
+              <div class="panel-card folder-setup-card">
+                <div class="panel-card-header">
+                  <span class="panel-card-title">Archive Reference Folder</span>
+                  <span class="panel-card-subtitle">Google Drive Cloud Archiving</span>
+                </div>
+                <div class="folder-setup-body">
+                  <div class="folder-status-text" id="folder-status-text">
+                    Connected to Google Drive Folder:<br>
+                    <a href="https://drive.google.com/drive/folders/1x3giWLl-yft4JiXrVwaJURbDi7UYkvG-?usp=sharing" target="_blank" style="color: var(--accent-color); font-weight: 700; text-decoration: underline; word-break: break-all;">
+                      Automation Daily Archive (Shared)
+                    </a>
+                  </div>
+                  <button class="btn-primary" id="btn-select-folder" style="width: 100%; justify-content: center; display: inline-flex; align-items: center; gap: 0.5rem; background-color: var(--bg-card); border: 1px solid var(--border-color); color: var(--text-secondary); pointer-events: none; opacity: 0.6;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                    Cloud Connected
+                  </button>
+                </div>
+              </div>
+
+              <!-- History List Card -->
+              <div class="table-card" style="margin-top: 1rem;">
+                <div class="table-card-header">
+                  <h3>Upload History Log</h3>
+                  <div class="search-filter-controls">
+                    <select class="filter-select" id="trend-granularity-select" onchange="renderHistoryAndCharts()">
+                      <option value="all">All Uploads</option>
+                      <option value="dayend" selected>Day End Only</option>
+                      <option value="weekly">Weekly Average</option>
+                      <option value="monthly">Monthly Average</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="table-responsive-container" style="max-height: 480px; overflow-y: auto;">
+                  <table class="data-table" id="trend-history-table">
+                    <thead>
+                      <tr>
+                        <th>Date & Time</th>
+                        <th>Filename</th>
+                        <th>Uptime %</th>
+                        <th>Online/Offline</th>
+                        <th style="text-align: center;">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="trend-history-tbody">
+                      <!-- Filled dynamically -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Panel: Visual charts -->
+            <div class="trend-col-right">
+              <!-- Chart 1: Uptime Trends -->
+              <div class="panel-card">
+                <div class="panel-card-header">
+                  <span class="panel-card-title">Uptime Performance Trend</span>
+                  <span class="panel-card-subtitle" id="uptime-chart-subtitle">Overall, MPD & Tank Uptime Over Time</span>
+                </div>
+                <div class="chart-canvas-container" style="height: 250px;">
+                  <canvas id="trend-uptime-chart"></canvas>
+                </div>
+              </div>
+
+              <!-- Chart 2: Status Breakdown Counts -->
+              <div class="panel-card" style="margin-top: 1.5rem;">
+                <div class="panel-card-header">
+                  <span class="panel-card-title">Outlet Uptime Status Trend</span>
+                  <span class="panel-card-subtitle" id="status-chart-subtitle">Online, Partial & Offline Count Distributions</span>
+                </div>
+                <div class="chart-canvas-container" style="height: 250px;">
+                  <canvas id="trend-status-chart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- Neumorphic Modal Dialog for KPI Details -->
+  <div id="kpi-details-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modal-title">Concerned Sites</h3>
+        <div class="modal-actions">
+          <button class="btn-primary" id="modal-download-btn" onclick="downloadModalCSV()">Download CSV</button>
+          <button class="btn-secondary" id="modal-close-btn" onclick="closeKpiDetailsModal()">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body" style="overflow-y: auto; padding: 0.5rem;">
+        <div class="table-responsive-container" style="max-height: 550px;">
+          <table class="data-table" id="modal-data-table">
+            <thead>
+              <tr id="modal-table-headers">
+                <!-- Dynamic headers -->
+              </tr>
+            </thead>
+            <tbody id="modal-table-body">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-notification" class="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-message">Success!</span>
+  </div>
+
+  <!-- Global script for sidebar navigation -->
+  <script>
+    function switchSidebarTab(targetTabId) {
+      // Find the tab panel with the target ID
+      const tabPanels = document.querySelectorAll('.tab-panel');
+      tabPanels.forEach(panel => {
+        panel.classList.remove('active');
+        if (panel.getAttribute('id') === targetTabId) {
+          panel.classList.add('active');
+        }
+      });
+      
+      // Update sidebar menu active states
+      const menuItems = document.querySelectorAll('.sidebar-menu .menu-item');
+      menuItems.forEach(item => {
+        item.classList.remove('active');
+      });
+      
+      // Set active based on targetTabId
+      const activeItem = Array.from(menuItems).find(item => {
+        const title = item.getAttribute('title').toLowerCase();
+        if (targetTabId === 'tab-overview' && title === 'dashboard') return true;
+        if (targetTabId === 'tab-day-monitoring' && title === 'day monitoring') return true;
+        if (targetTabId === 'tab-monitoring' && title === 'monitoring') return true;
+        if (targetTabId === 'tab-performance-trend' && title === 'performance trend') return true;
+        if (targetTabId === 'tab-sales-area' && title === 'sales areas') return true;
+        if (targetTabId === 'tab-vendor-summary' && title === 'vendor summary') return true;
+        if (targetTabId === 'tab-eo-summary' && title === 'eo summary') return true;
+        if (targetTabId === 'tab-so-summary' && title === 'so summary') return true;
+        if (targetTabId === 'tab-ro-explorer' && title === 'ro explorer') return true;
+        if (targetTabId === 'tab-mapping' && title === 'mappings') return true;
+        return false;
+      });
+      if (activeItem) activeItem.classList.add('active');
+
+      if (targetTabId === 'tab-day-monitoring' && window.renderDayMonitoringTable) {
+        window.renderDayMonitoringTable();
+      }
+      
+      if (targetTabId === 'tab-monitoring' && window.renderMonitoringComparison) {
+        window.renderMonitoringComparison();
+      }
+      
+      if (targetTabId === 'tab-performance-trend' && window.loadUploadHistory) {
+        window.loadUploadHistory();
+      }
+    }
+  </script>
+
+  <!-- Modal for Upload Date/Time Confirmation -->
+  <div id="upload-confirm-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 id="confirm-modal-title">Confirm Upload Details</h3>
+        <button class="btn-secondary" id="confirm-modal-close-btn" onclick="closeUploadConfirmModal()" style="font-size: 1.5rem; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 0.5rem; display: flex; flex-direction: column; gap: 1.25rem;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+          Confirm the date and time for this monitoring data to ensure it's mapped correctly in the historical trend.
+        </p>
+        <div class="form-group">
+          <label for="upload-confirm-date">Data Date</label>
+          <input type="date" id="upload-confirm-date" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="upload-confirm-time">Data Time</label>
+          <input type="time" id="upload-confirm-time" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>File Name</label>
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--accent-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="upload-confirm-filename">-</div>
+        </div>
+        <div class="form-actions" style="justify-content: flex-end; margin-top: 0.5rem;">
+          <button class="btn-secondary" onclick="closeUploadConfirmModal()">Cancel</button>
+          <button class="btn-primary" id="btn-confirm-upload-save">Confirm & Import</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Login Overlay Modal (RBAC Access control) -->
+  <div id="login-overlay" class="modal-overlay" style="display: flex; z-index: 10000; background-color: var(--bg-secondary);">
+    <div class="modal-container" style="max-width: 420px; box-shadow: var(--shadow-raised); padding: 2rem; border-radius: 24px;">
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.25rem;">BPCL Automation</h2>
+        <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-color); text-transform: uppercase; letter-spacing: 1px;">Security Portal</span>
+      </div>
+      <form id="login-form" style="display: flex; flex-direction: column; gap: 1.25rem;" onsubmit="return false;">
+        <div class="form-group">
+          <label for="login-role" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Select Role</label>
+          <select id="login-role" class="form-control" style="background-color: var(--bg-primary); border: 1px solid rgba(163, 177, 198, 0.5); font-weight: 600;" required>
+            <option value="admin">Admin</option>
+            <option value="tm">Territory Manager</option>
+            <option value="eo">Engineering Officer</option>
+            <option value="so">Sales Officer</option>
+            <option value="vendor">Vendor</option>
+          </select>
+        </div>
+        
+        <div class="form-group" id="login-username-group" style="display: none;">
+          <label for="login-username" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Select User / Name</label>
+          <select id="login-username" class="form-control" style="background-color: var(--bg-primary); border: 1px solid rgba(163, 177, 198, 0.5); font-weight: 600;">
+            <!-- Dynamically Populated -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password" style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Enter password (default: password)" style="background-color: var(--bg-primary); border: 1px solid rgba(163, 177, 198, 0.5); font-weight: 600;" required>
+        </div>
+
+        <div id="login-error-msg" style="display: none; color: var(--accent-red); font-size: 0.8rem; font-weight: 700; text-align: center; margin-top: -0.25rem;"></div>
+
+        <button type="submit" class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.9rem; font-weight: 700; margin-top: 0.5rem; box-shadow: var(--shadow-raised-sm);">Access Dashboard</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+  <script src="sample_data.js"></script>
+  <script src="day_monitoring_config.js"></script>
+<script src="app.js"></script>
+  <script src="trend.js"></script>
+</body>
+</html>

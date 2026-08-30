@@ -1,0 +1,6 @@
+{
+  "neohos_username": "YOUR_NEOHOS_USERNAME",
+  "neohos_password": "YOUR_NEOHOS_PASSWORD",
+  "google_apps_script_url": "https://script.google.com/macros/s/YOUR_APPS_SCRIPT_DEPLOYMENT_ID/exec",
+  "territory_filter": "Belgaum"
+}
