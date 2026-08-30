@@ -2593,7 +2593,7 @@ window.renderDayMonitoringTable = function() {
   });
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
     return;
   }
 
@@ -2653,14 +2653,40 @@ window.renderDayMonitoringTable = function() {
     tdResp.appendChild(selectResp);
     tr.appendChild(tdResp);
 
-    // Complaint Remarks Select
+    // Complaint Remarks Container (Dropdown + Text Input)
     const tdRemark = document.createElement('td');
+    const containerRemark = document.createElement('div');
+    containerRemark.style.display = 'flex';
+    containerRemark.style.flexDirection = 'column';
+    containerRemark.style.gap = '4px';
+
     const selectRemark = document.createElement('select');
     selectRemark.className = 'table-select';
+    selectRemark.style.width = '100%';
+    
+    const inputRemark = document.createElement('input');
+    inputRemark.type = 'text';
+    inputRemark.className = 'table-input';
+    inputRemark.placeholder = 'Or write remark...';
+    inputRemark.style.width = '100%';
+    inputRemark.style.padding = '4px 8px';
+    inputRemark.style.borderRadius = '6px';
+    inputRemark.style.border = '1px solid var(--border-color)';
+    inputRemark.style.backgroundColor = 'var(--card-bg)';
+    inputRemark.style.color = 'var(--text-color)';
+    inputRemark.style.fontSize = '0.9rem';
+    inputRemark.value = savedRemark;
     
     // Function to populate remarks based on responsibility
     const populateRemarks = (respVal, selectedRemark) => {
       selectRemark.innerHTML = '';
+      
+      // Default placeholder option
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = '-- Select Option --';
+      selectRemark.appendChild(defaultOpt);
+
       const remarks = COMPLAINT_REMARKS_DB[respVal] || COMPLAINT_REMARKS_DB[''];
       remarks.forEach(r => {
         const opt = document.createElement('option');
@@ -2674,30 +2700,78 @@ window.renderDayMonitoringTable = function() {
     };
 
     populateRemarks(savedResp, savedRemark);
-    tdRemark.appendChild(selectRemark);
+    containerRemark.appendChild(selectRemark);
+    containerRemark.appendChild(inputRemark);
+    tdRemark.appendChild(containerRemark);
     tr.appendChild(tdRemark);
+
+    // Columns: Updated By & Updated At
+    const tdUpdatedBy = document.createElement('td');
+    tdUpdatedBy.textContent = sharedData.updatedBy || localData.updatedBy || '-';
+    tr.appendChild(tdUpdatedBy);
+
+    const tdUpdatedAt = document.createElement('td');
+    let dateStr = '-';
+    const rawTime = sharedData.updatedAt || localData.updatedAt;
+    if (rawTime) {
+      try {
+        const d = new Date(rawTime);
+        dateStr = d.toLocaleString();
+      } catch (e) {}
+    }
+    tdUpdatedAt.textContent = dateStr;
+    tr.appendChild(tdUpdatedAt);
+
+    // Helper for saving and updating cells reactively
+    const performSave = (resp, remarkVal) => {
+      const userName = getCurrentDashboardUserName();
+      const nowStr = new Date().toISOString();
+      const localTimeStr = new Date(nowStr).toLocaleString();
+
+      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
+        responsibility: resp,
+        remark: remarkVal,
+        updatedBy: userName,
+        updatedAt: nowStr
+      }));
+
+      tdUpdatedBy.textContent = userName;
+      tdUpdatedAt.textContent = localTimeStr;
+
+      saveSharedDayMonitoringRow(ro, resp, remarkVal, true);
+    };
 
     // Event listener for Responsibility
     selectResp.addEventListener('change', (e) => {
       const newResp = e.target.value;
       populateRemarks(newResp, '');
-      const newRemark = selectRemark.value;
-      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
-        responsibility: newResp,
-        remark: newRemark
-      }));
-      saveSharedDayMonitoringRow(ro, newResp, newRemark, true);
+      inputRemark.value = '';
+      performSave(newResp, '');
     });
 
-    // Event listener for Complaint Remarks
+    // Event listener for Complaint Remarks Select
     selectRemark.addEventListener('change', (e) => {
       const newRemark = e.target.value;
-      const currentResp = selectResp.value;
-      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
-        responsibility: currentResp,
-        remark: newRemark
-      }));
-      saveSharedDayMonitoringRow(ro, currentResp, newRemark, true);
+      inputRemark.value = newRemark;
+      performSave(selectResp.value, newRemark);
+    });
+
+    // Event listener for Custom Remarks Input (triggers on change / blur)
+    inputRemark.addEventListener('change', (e) => {
+      const typedRemark = e.target.value;
+      // Sync with select dropdown if option exists
+      let matched = false;
+      for (let i = 0; i < selectRemark.options.length; i++) {
+        if (selectRemark.options[i].value === typedRemark) {
+          selectRemark.selectedIndex = i;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) {
+        selectRemark.value = '';
+      }
+      performSave(selectResp.value, typedRemark);
     });
 
     const tdMpd = document.createElement('td');
@@ -2720,7 +2794,7 @@ window.exportDayMonitoringData = function() {
   }
 
   let csvContent = "data:text/csv;charset=utf-8,";
-  const headers = ["ROID", "Retail Outlet", "Sales Area", "Vendor", "Uptime %", "Status", "IOT/WFCC", "Responsibility", "Complaint Remarks", "Offline MPDs", "Offline Tanks"];
+  const headers = ["ROID", "Retail Outlet", "Sales Area", "Vendor", "Uptime %", "Status", "IOT/WFCC", "Responsibility", "Complaint Remarks", "Updated By", "Updated At", "Offline MPDs", "Offline Tanks"];
   csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
 
   list.forEach(ro => {
@@ -2728,6 +2802,14 @@ window.exportDayMonitoringData = function() {
     const localData = JSON.parse(localStorage.getItem('day_remarks_' + ro.roid) || '{}');
     const resp = sharedData.responsibility ?? localData.responsibility ?? '';
     const remark = sharedData.remark ?? localData.remark ?? '';
+    const updatedBy = sharedData.updatedBy || localData.updatedBy || '-';
+    let updatedAtStr = '-';
+    const rawTime = sharedData.updatedAt || localData.updatedAt;
+    if (rawTime) {
+      try {
+        updatedAtStr = new Date(rawTime).toLocaleString();
+      } catch (e) {}
+    }
     
     const rowVals = [
       ro.roid,
@@ -2739,6 +2821,8 @@ window.exportDayMonitoringData = function() {
       ro.iot_status,
       resp,
       remark,
+      updatedBy,
+      updatedAtStr,
       ro.off_mpd.toFixed(0),
       ro.off_tnk.toFixed(0)
     ];
