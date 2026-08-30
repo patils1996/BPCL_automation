@@ -90,13 +90,19 @@ function getSpreadsheet_() {
 function setupSheets_(ss) {
   let sheet = ss.getSheetByName(CONFIG.DATA_SHEET);
   if (!sheet) sheet = ss.insertSheet(CONFIG.DATA_SHEET);
+  const headers = [
+    'Date','ROID','Outlet Name','Sales Area','Vendor','Status','IOT/WFCC',
+    'Uptime','Offline MPD','Offline Tank','Responsibility','Remark',
+    'Updated By','Updated At','Territory','Target Date'
+  ];
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow([
-      'Date','ROID','Outlet Name','Sales Area','Vendor','Status','IOT/WFCC',
-      'Uptime','Offline MPD','Offline Tank','Responsibility','Remark',
-      'Updated By','Updated At','Territory'
-    ]);
+    sheet.appendRow(headers);
     sheet.setFrozenRows(1);
+  } else {
+    const firstRow = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (firstRow.indexOf('Target Date') === -1) {
+      sheet.getRange(1, firstRow.length + 1).setValue('Target Date');
+    }
   }
 
   let snapshots = ss.getSheetByName(CONFIG.SNAPSHOT_SHEET);
@@ -135,6 +141,7 @@ function getRows_(date, territory) {
         offlineTank: Number(obj['Offline Tank'] || 0),
         responsibility: String(obj['Responsibility'] || ''),
         remark: String(obj['Remark'] || ''),
+        targetDate: String(obj['Target Date'] || ''),
         updatedBy: String(obj['Updated By'] || ''),
         updatedAt: obj['Updated At'] instanceof Date ? obj['Updated At'].toISOString() : String(obj['Updated At'] || ''),
         territory: rowTerritory
@@ -179,7 +186,8 @@ function upsertRows_(rows) {
         String(r.remark || ''),
         String(r.updatedBy || 'Unknown User'),
         r.updatedAt ? new Date(r.updatedAt) : new Date(),
-        territory
+        territory,
+        String(r.targetDate || '')
       ];
       const key = date + '|' + String(r.roid || '') + '|' + territory;
       const rowNo = existing.get(key);
@@ -202,7 +210,7 @@ function createDailySnapshot_(date, territory) {
   const headers = [
     'Date','ROID','Outlet Name','Sales Area','Vendor','Status','IOT/WFCC',
     'Uptime %','Offline MPD','Offline Tank','Responsibility','Remark',
-    'Updated By','Updated At','Territory'
+    'Target Date','Updated By','Updated At','Territory'
   ];
 
   const lines = [headers.map(csv_).join(',')];
@@ -211,6 +219,7 @@ function createDailySnapshot_(date, territory) {
       r.date, r.roid, r.outletName, r.salesArea, r.vendor, r.status, r.iot,
       (Number(r.uptime || 0) * 100).toFixed(2) + '%',
       r.offlineMpd, r.offlineTank, r.responsibility, r.remark,
+      r.targetDate || '',
       r.updatedBy, r.updatedAt, r.territory
     ].map(csv_).join(','));
   });

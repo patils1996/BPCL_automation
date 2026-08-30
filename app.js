@@ -2371,7 +2371,7 @@ window.loadSharedDayMonitoring = async function(silent = true) {
   }
 };
 
-window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, showMessage = false) {
+window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, targetDate = '', showMessage = false) {
   const row = {
     date: getDayMonitoringDate(),
     roid: String(ro.roid),
@@ -2385,6 +2385,7 @@ window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, s
     offlineTank: Number(ro.off_tnk || 0),
     responsibility: responsibility || '',
     remark: remark || '',
+    targetDate: targetDate || '',
     updatedBy: getCurrentDashboardUserName(),
     updatedAt: new Date().toISOString(),
     territory: 'Belgaum'
@@ -2406,6 +2407,7 @@ window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, s
     localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
       responsibility: responsibility || '',
       remark: remark || '',
+      targetDate: targetDate || '',
       pendingCloudSync: true,
       updatedAt: row.updatedAt,
       updatedBy: row.updatedBy
@@ -2448,6 +2450,7 @@ window.autoSyncDayMonitoringToCloud = async function(silent = true) {
         offlineTank: Number(ro.off_tnk || 0),
         responsibility: shared.responsibility ?? local.responsibility ?? '',
         remark: shared.remark ?? local.remark ?? '',
+        targetDate: shared.targetDate ?? local.targetDate ?? '',
         updatedBy: shared.updatedBy || getCurrentDashboardUserName(),
         updatedAt: shared.updatedAt || new Date().toISOString(),
         territory: 'Belgaum'
@@ -2499,6 +2502,7 @@ window.saveDailyDayMonitoringToDrive = async function() {
       offlineTank: Number(ro.off_tnk || 0),
       responsibility: shared.responsibility ?? local.responsibility ?? '',
       remark: shared.remark ?? local.remark ?? '',
+      targetDate: shared.targetDate ?? local.targetDate ?? '',
       updatedBy: shared.updatedBy || getCurrentDashboardUserName(),
       updatedAt: shared.updatedAt || new Date().toISOString(),
       territory: 'Belgaum'
@@ -2593,7 +2597,7 @@ window.renderDayMonitoringTable = function() {
   });
 
   if (list.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
     return;
   }
 
@@ -2605,6 +2609,7 @@ window.renderDayMonitoringTable = function() {
     const localData = JSON.parse(localStorage.getItem('day_remarks_' + ro.roid) || '{}');
     const savedResp = sharedData.responsibility ?? localData.responsibility ?? '';
     const savedRemark = sharedData.remark ?? localData.remark ?? '';
+    const savedTargetDate = sharedData.targetDate ?? localData.targetDate ?? '';
 
     // Create Row Cells
     const tdRoid = document.createElement('td');
@@ -2653,38 +2658,30 @@ window.renderDayMonitoringTable = function() {
     tdResp.appendChild(selectResp);
     tr.appendChild(tdResp);
 
-    // Complaint Remarks Container (Dropdown + Text Input)
+    // Complaint Remarks Select & Text Input
     const tdRemark = document.createElement('td');
-    const containerRemark = document.createElement('div');
-    containerRemark.style.display = 'flex';
-    containerRemark.style.flexDirection = 'column';
-    containerRemark.style.gap = '4px';
+    const remarkContainer = document.createElement('div');
+    remarkContainer.style.display = 'flex';
+    remarkContainer.style.flexDirection = 'column';
+    remarkContainer.style.gap = '4px';
 
-    const selectRemark = document.createElement('select');
-    selectRemark.className = 'table-select';
-    selectRemark.style.width = '100%';
-    
     const inputRemark = document.createElement('input');
     inputRemark.type = 'text';
     inputRemark.className = 'table-input';
-    inputRemark.placeholder = 'Or write remark...';
-    inputRemark.style.width = '100%';
-    inputRemark.style.padding = '4px 8px';
-    inputRemark.style.borderRadius = '6px';
-    inputRemark.style.border = '1px solid var(--border-color)';
-    inputRemark.style.backgroundColor = 'var(--card-bg)';
-    inputRemark.style.color = 'var(--text-color)';
-    inputRemark.style.fontSize = '0.9rem';
+    inputRemark.style.width = '150px';
     inputRemark.value = savedRemark;
+    inputRemark.placeholder = 'Type custom remark...';
+
+    const selectRemark = document.createElement('select');
+    selectRemark.className = 'table-select';
+    selectRemark.style.width = '150px';
     
     // Function to populate remarks based on responsibility
     const populateRemarks = (respVal, selectedRemark) => {
       selectRemark.innerHTML = '';
-      
-      // Default placeholder option
       const defaultOpt = document.createElement('option');
       defaultOpt.value = '';
-      defaultOpt.textContent = '-- Select Option --';
+      defaultOpt.textContent = '--- Select Template ---';
       selectRemark.appendChild(defaultOpt);
 
       const remarks = COMPLAINT_REMARKS_DB[respVal] || COMPLAINT_REMARKS_DB[''];
@@ -2700,78 +2697,76 @@ window.renderDayMonitoringTable = function() {
     };
 
     populateRemarks(savedResp, savedRemark);
-    containerRemark.appendChild(selectRemark);
-    containerRemark.appendChild(inputRemark);
-    tdRemark.appendChild(containerRemark);
+    remarkContainer.appendChild(inputRemark);
+    remarkContainer.appendChild(selectRemark);
+    tdRemark.appendChild(remarkContainer);
     tr.appendChild(tdRemark);
 
-    // Columns: Updated By & Updated At
-    const tdUpdatedBy = document.createElement('td');
-    tdUpdatedBy.textContent = sharedData.updatedBy || localData.updatedBy || '-';
-    tr.appendChild(tdUpdatedBy);
-
-    const tdUpdatedAt = document.createElement('td');
-    let dateStr = '-';
-    const rawTime = sharedData.updatedAt || localData.updatedAt;
-    if (rawTime) {
-      try {
-        const d = new Date(rawTime);
-        dateStr = d.toLocaleString();
-      } catch (e) {}
-    }
-    tdUpdatedAt.textContent = dateStr;
-    tr.appendChild(tdUpdatedAt);
-
-    // Helper for saving and updating cells reactively
-    const performSave = (resp, remarkVal) => {
-      const userName = getCurrentDashboardUserName();
-      const nowStr = new Date().toISOString();
-      const localTimeStr = new Date(nowStr).toLocaleString();
-
-      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
-        responsibility: resp,
-        remark: remarkVal,
-        updatedBy: userName,
-        updatedAt: nowStr
-      }));
-
-      tdUpdatedBy.textContent = userName;
-      tdUpdatedAt.textContent = localTimeStr;
-
-      saveSharedDayMonitoringRow(ro, resp, remarkVal, true);
-    };
+    // Target Date Input
+    const tdTargetDate = document.createElement('td');
+    const inputTargetDate = document.createElement('input');
+    inputTargetDate.type = 'date';
+    inputTargetDate.className = 'table-input';
+    inputTargetDate.style.width = '120px';
+    inputTargetDate.value = savedTargetDate;
+    tdTargetDate.appendChild(inputTargetDate);
+    tr.appendChild(tdTargetDate);
 
     // Event listener for Responsibility
     selectResp.addEventListener('change', (e) => {
       const newResp = e.target.value;
       populateRemarks(newResp, '');
-      inputRemark.value = '';
-      performSave(newResp, '');
+      const newRemark = selectRemark.value || inputRemark.value;
+      const targetDt = inputTargetDate.value;
+      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
+        responsibility: newResp,
+        remark: newRemark,
+        targetDate: targetDt
+      }));
+      saveSharedDayMonitoringRow(ro, newResp, newRemark, targetDt, true);
     });
 
-    // Event listener for Complaint Remarks Select
+    // Event listener for Complaint Remarks Dropdown
     selectRemark.addEventListener('change', (e) => {
-      const newRemark = e.target.value;
-      inputRemark.value = newRemark;
-      performSave(selectResp.value, newRemark);
+      const selectedTpl = e.target.value;
+      if (selectedTpl) {
+        inputRemark.value = selectedTpl;
+      }
+      const newRemark = inputRemark.value;
+      const currentResp = selectResp.value;
+      const targetDt = inputTargetDate.value;
+      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
+        responsibility: currentResp,
+        remark: newRemark,
+        targetDate: targetDt
+      }));
+      saveSharedDayMonitoringRow(ro, currentResp, newRemark, targetDt, true);
     });
 
-    // Event listener for Custom Remarks Input (triggers on change / blur)
+    // Event listener for Custom Remarks Custom text typing
     inputRemark.addEventListener('change', (e) => {
-      const typedRemark = e.target.value;
-      // Sync with select dropdown if option exists
-      let matched = false;
-      for (let i = 0; i < selectRemark.options.length; i++) {
-        if (selectRemark.options[i].value === typedRemark) {
-          selectRemark.selectedIndex = i;
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) {
-        selectRemark.value = '';
-      }
-      performSave(selectResp.value, typedRemark);
+      const newRemark = e.target.value;
+      const currentResp = selectResp.value;
+      const targetDt = inputTargetDate.value;
+      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
+        responsibility: currentResp,
+        remark: newRemark,
+        targetDate: targetDt
+      }));
+      saveSharedDayMonitoringRow(ro, currentResp, newRemark, targetDt, true);
+    });
+
+    // Event listener for Target Date
+    inputTargetDate.addEventListener('change', (e) => {
+      const targetDt = e.target.value;
+      const currentResp = selectResp.value;
+      const currentRemark = inputRemark.value;
+      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
+        responsibility: currentResp,
+        remark: currentRemark,
+        targetDate: targetDt
+      }));
+      saveSharedDayMonitoringRow(ro, currentResp, currentRemark, targetDt, true);
     });
 
     const tdMpd = document.createElement('td');
@@ -2794,7 +2789,7 @@ window.exportDayMonitoringData = function() {
   }
 
   let csvContent = "data:text/csv;charset=utf-8,";
-  const headers = ["ROID", "Retail Outlet", "Sales Area", "Vendor", "Uptime %", "Status", "IOT/WFCC", "Responsibility", "Complaint Remarks", "Updated By", "Updated At", "Offline MPDs", "Offline Tanks"];
+  const headers = ["ROID", "Retail Outlet", "Sales Area", "Vendor", "Uptime %", "Status", "IOT/WFCC", "Responsibility", "Complaint Remarks", "Target Date", "Offline MPDs", "Offline Tanks"];
   csvContent += headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\n";
 
   list.forEach(ro => {
@@ -2802,14 +2797,7 @@ window.exportDayMonitoringData = function() {
     const localData = JSON.parse(localStorage.getItem('day_remarks_' + ro.roid) || '{}');
     const resp = sharedData.responsibility ?? localData.responsibility ?? '';
     const remark = sharedData.remark ?? localData.remark ?? '';
-    const updatedBy = sharedData.updatedBy || localData.updatedBy || '-';
-    let updatedAtStr = '-';
-    const rawTime = sharedData.updatedAt || localData.updatedAt;
-    if (rawTime) {
-      try {
-        updatedAtStr = new Date(rawTime).toLocaleString();
-      } catch (e) {}
-    }
+    const targetDate = sharedData.targetDate ?? localData.targetDate ?? '';
     
     const rowVals = [
       ro.roid,
@@ -2821,8 +2809,7 @@ window.exportDayMonitoringData = function() {
       ro.iot_status,
       resp,
       remark,
-      updatedBy,
-      updatedAtStr,
+      targetDate,
       ro.off_mpd.toFixed(0),
       ro.off_tnk.toFixed(0)
     ];
