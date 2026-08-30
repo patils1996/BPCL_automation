@@ -2426,6 +2426,13 @@ let dayMonitoringAutoSyncInProgress = false;
  */
 window.autoSyncDayMonitoringToCloud = async function(silent = true) {
   if (dayMonitoringAutoSyncInProgress || !Array.isArray(calculatedROs) || !calculatedROs.length) return;
+  
+  // Guard against overwriting cloud data with empty/stale local values on startup
+  if (!window.dayMonitoringSyncState.lastSync) {
+    console.log("Skipping auto-push sync: Cloud data not yet loaded.");
+    return;
+  }
+
   const cfg = getDayMonitoringApiConfig();
   if (!cfg.apiUrl || !cfg.apiKey || cfg.apiKey === 'CHANGE_THIS_KEY') return;
 
@@ -2477,6 +2484,21 @@ window.startAutomaticDayMonitoringSync = function() {
   // First sync shortly after the current data is available, then every 10 minutes.
   setTimeout(() => window.autoSyncDayMonitoringToCloud(true), 3000);
   dayMonitoringAutoSyncTimer = setInterval(() => window.autoSyncDayMonitoringToCloud(true), 10 * 60 * 1000);
+
+  // Poll for updates from other users every 30 seconds
+  if (window.dayMonitoringPollTimer) clearInterval(window.dayMonitoringPollTimer);
+  window.dayMonitoringPollTimer = setInterval(async () => {
+    // Only pull if the user is not actively typing or selecting inside the table
+    const activeEl = document.activeElement;
+    const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT') && activeEl.closest('#day-monitoring-tbody');
+    if (!isEditing) {
+      try {
+        await window.loadSharedDayMonitoring(true);
+      } catch (e) {
+        console.warn("Background fetch of shared day monitoring failed:", e);
+      }
+    }
+  }, 30 * 1000);
 };
 
 window.saveDailyDayMonitoringToDrive = async function() {
