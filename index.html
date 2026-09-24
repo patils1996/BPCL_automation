@@ -44,6 +44,11 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         Monitoring
       </div>
+      <div class="menu-item" title="Comparison" id="sidebar-comparison-btn" onclick="switchSidebarTab('tab-comparison')">
+        <!-- Git/Compare SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M6 9v12"></path><path d="M18 9a9 9 0 0 0-9 9"></path></svg>
+        Comparison
+      </div>
       <div class="menu-item" title="Performance Trend" id="sidebar-performance-trend-btn" onclick="switchSidebarTab('tab-performance-trend')">
         <!-- Line Chart SVG icon -->
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
@@ -580,6 +585,196 @@
           </div>
         </div>
 
+        <!-- TAB: 3-DAY EOD COMPARISON & ROOT-CAUSE ENGINE -->
+        <div class="tab-panel" id="tab-comparison">
+          <div class="table-card">
+            <div class="table-card-header" style="flex-direction: column; align-items: flex-start; gap: 1rem;">
+              <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                  <h3 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>3-Day Comparison & Root-Cause Engine</span>
+                    <span id="comp-period-badge" style="font-size: 0.75rem; background: var(--bg-primary); padding: 4px 10px; border-radius: 20px; font-weight: 700; color: var(--accent-color); box-shadow: var(--shadow-raised-sm);">
+                      Loading 3-Day EOD Period...
+                    </span>
+                  </h3>
+                  <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    Identifies ROs with repeated Offline/Partial Column V downtime despite healthy equipment (Possible Dealer/Operational Issues).
+                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
+                  <button class="btn-secondary" id="comp-snapshot-btn" title="Capture current data as an EOD snapshot">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    Capture 10:00 PM EOD Snapshot
+                  </button>
+                  <button class="btn-primary" id="comp-export-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Export Comparison
+                  </button>
+                </div>
+              </div>
+
+              <!-- EOD Period & Historical Date Selectors -->
+              <div style="display: flex; gap: 1rem; align-items: center; background: var(--bg-primary); padding: 0.75rem 1rem; border-radius: 12px; width: 100%; box-shadow: var(--shadow-inset-sm); flex-wrap: wrap; box-sizing: border-box;">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                  <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">Compare Days:</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                  <label for="comp-date-select-1" style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">Day 1 (Oldest)</label>
+                  <select id="comp-date-select-1" class="form-control" style="font-size: 0.78rem; font-weight: 600; padding: 4px 8px; width: 150px;"></select>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                  <label for="comp-date-select-2" style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">Day 2</label>
+                  <select id="comp-date-select-2" class="form-control" style="font-size: 0.78rem; font-weight: 600; padding: 4px 8px; width: 150px;"></select>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.2rem;">
+                  <label for="comp-date-select-3" style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">Day 3 (Latest EOD)</label>
+                  <select id="comp-date-select-3" class="form-control" style="font-size: 0.78rem; font-weight: 600; padding: 4px 8px; width: 150px;"></select>
+                </div>
+                <button class="btn-secondary" id="comp-apply-dates-btn" style="align-self: flex-end; padding: 5px 12px; font-size: 0.78rem; border-radius: 8px;">
+                  Apply Period
+                </button>
+                <div style="margin-left: auto; font-size: 0.72rem; color: var(--text-muted); display: flex; align-items: center; gap: 4px;">
+                  <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
+                  10:00 PM Auto-Snapshot Active
+                </div>
+              </div>
+
+              <!-- 8 Clickable Summary Cards (Requirement 7) -->
+              <div class="comparison-kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; width: 100%; box-sizing: border-box; margin-top: 0.25rem;">
+                <!-- Card 1: Total -->
+                <div class="comp-kpi-card active-kpi-filter" id="card-comp-total" title="Click to view all compared outlets">
+                  <div class="comp-kpi-label">Total Outlets Compared</div>
+                  <div class="comp-kpi-value" id="comp-kpi-total">0</div>
+                  <div class="comp-kpi-sub">Complete 3-Day Scope</div>
+                </div>
+
+                <!-- Card 2: Possible Dealer Issue (Key Objective) -->
+                <div class="comp-kpi-card border-dealer" id="card-comp-dealer" title="Click to filter by Possible Dealer Issues">
+                  <div class="comp-kpi-label" style="color: #d97706;">⚠️ Possible Dealer Issues</div>
+                  <div class="comp-kpi-value text-dealer" id="comp-kpi-dealer">0</div>
+                  <div class="comp-kpi-sub">Downtime with Healthy Equip</div>
+                </div>
+
+                <!-- Card 3: Equipment Issue -->
+                <div class="comp-kpi-card border-equip" id="card-comp-equip" title="Click to filter by Equipment Issues">
+                  <div class="comp-kpi-label" style="color: #2563eb;">🛠️ Equipment Issues</div>
+                  <div class="comp-kpi-value text-equip" id="comp-kpi-equip">0</div>
+                  <div class="comp-kpi-sub">MPD / Tank hardware fault</div>
+                </div>
+
+                <!-- Card 4: Normal / Healthy -->
+                <div class="comp-kpi-card border-normal" id="card-comp-normal" title="Click to filter by Normal Outlets">
+                  <div class="comp-kpi-label" style="color: #059669;">✅ Normal / Healthy</div>
+                  <div class="comp-kpi-value text-normal" id="comp-kpi-normal">0</div>
+                  <div class="comp-kpi-sub">Consistent 3-Day Online</div>
+                </div>
+
+                <!-- Card 5: 3-Day Continuous Offline -->
+                <div class="comp-kpi-card border-cont-off" id="card-comp-cont-off" title="Click to filter by 3-Day Continuous Offline">
+                  <div class="comp-kpi-label" style="color: #dc2626;">🔴 3-Day Continuous Offline</div>
+                  <div class="comp-kpi-value text-cont-off" id="comp-kpi-cont-off">0</div>
+                  <div class="comp-kpi-sub">Offline Day 1, 2 & 3</div>
+                </div>
+
+                <!-- Card 6: 3-Day Continuous Partial -->
+                <div class="comp-kpi-card border-cont-part" id="card-comp-cont-part" title="Click to filter by 3-Day Continuous Partial">
+                  <div class="comp-kpi-label" style="color: #b45309;">🟠 3-Day Continuous Partial</div>
+                  <div class="comp-kpi-value text-cont-part" id="comp-kpi-cont-part">0</div>
+                  <div class="comp-kpi-sub">Partial Day 1, 2 & 3</div>
+                </div>
+
+                <!-- Card 7: Repeated Offline/Partial -->
+                <div class="comp-kpi-card border-repeated" id="card-comp-repeated" title="Click to filter by Repeated Offline/Partial">
+                  <div class="comp-kpi-label" style="color: #7c3aed;">🔄 Repeated Offline/Partial</div>
+                  <div class="comp-kpi-value text-repeated" id="comp-kpi-repeated">0</div>
+                  <div class="comp-kpi-sub">Down on 2 or 3 Days</div>
+                </div>
+
+                <!-- Card 8: Requires Verification -->
+                <div class="comp-kpi-card border-verify" id="card-comp-verify" title="Click to filter by Requires Verification">
+                  <div class="comp-kpi-label" style="color: #4b5563;">🔍 Requires Verification</div>
+                  <div class="comp-kpi-value text-verify" id="comp-kpi-verify">0</div>
+                  <div class="comp-kpi-sub">Single drop / Mixed signals</div>
+                </div>
+              </div>
+
+              <!-- Search and Filter Bar -->
+              <div style="display: flex; gap: 0.75rem; width: 100%; flex-wrap: wrap; margin-top: 0.5rem; align-items: center; justify-content: space-between;">
+                <div id="comp-count-info" style="font-size: 0.8rem; font-weight: 700; color: var(--text-secondary);">
+                  Showing 0 retail outlets
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center; margin-left: auto;">
+                  <input type="text" class="search-input" id="comp-search-input" placeholder="Search by RO name, CC Code, Sales Area..." style="min-width: 280px; font-size: 0.8rem; height: 34px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Table Responsive Container -->
+            <div class="table-responsive-container">
+              <table class="data-table" id="comparison-main-table">
+                <thead>
+                  <tr>
+                    <th style="min-width: 200px;">RO (Retail Outlet)</th>
+                    <th>CC Code</th>
+                    <th style="text-align: center;">
+                      Day 1 Status
+                      <select id="comp-filter-d1-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Online">Online</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Offline">Offline</option>
+                      </select>
+                    </th>
+                    <th style="text-align: center;">
+                      Day 2 Status
+                      <select id="comp-filter-d2-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Online">Online</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Offline">Offline</option>
+                      </select>
+                    </th>
+                    <th style="text-align: center;">
+                      Day 3 Status
+                      <select id="comp-filter-d3-status" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="Online">Online</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Offline">Offline</option>
+                      </select>
+                    </th>
+                    <th>Equipment Status</th>
+                    <th>
+                      3-Day Pattern
+                      <select id="comp-filter-pattern" class="header-filter-select">
+                        <option value="">All</option>
+                        <option value="3-Day Continuous Offline">3-Day Continuous Offline</option>
+                        <option value="3-Day Continuous Partial">3-Day Continuous Partial</option>
+                        <option value="Repeated Offline/Partial (3 Days)">Repeated Offline/Partial (3 Days)</option>
+                        <option value="Repeated Offline/Partial (2 Days)">Repeated Offline/Partial (2 Days)</option>
+                        <option value="Intermittent Offline/Partial">Intermittent Offline/Partial</option>
+                        <option value="Single Day Offline/Partial">Single Day Offline/Partial</option>
+                        <option value="3-Day Continuous Online">3-Day Continuous Online</option>
+                      </select>
+                    </th>
+                    <th>
+                      Issue Category
+                      <select id="comp-filter-area" class="header-filter-select" style="display:none;"></select>
+                      <select id="comp-filter-vendor" class="header-filter-select" style="display:none;"></select>
+                    </th>
+                    <th style="text-align: center; min-width: 120px;">Diagnostic Action</th>
+                  </tr>
+                </thead>
+                <tbody id="comp-table-tbody">
+                  <tr><td colspan="9" style="text-align: center; padding: 2.5rem;">Loading 3-Day EOD comparison data...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB 2: SALES AREAS -->
         <div class="tab-panel" id="tab-sales-area">
           <div class="table-card">
@@ -1110,6 +1305,7 @@
         if (targetTabId === 'tab-overview' && title === 'dashboard') return true;
         if (targetTabId === 'tab-day-monitoring' && title === 'day monitoring') return true;
         if (targetTabId === 'tab-monitoring' && title === 'monitoring') return true;
+        if (targetTabId === 'tab-comparison' && title === 'comparison') return true;
         if (targetTabId === 'tab-performance-trend' && title === 'performance trend') return true;
         if (targetTabId === 'tab-sales-area' && title === 'sales areas') return true;
         if (targetTabId === 'tab-vendor-summary' && title === 'vendor summary') return true;
@@ -1127,6 +1323,10 @@
       
       if (targetTabId === 'tab-monitoring' && window.renderMonitoringComparison) {
         window.renderMonitoringComparison();
+      }
+
+      if (targetTabId === 'tab-comparison' && window.render3DayComparison) {
+        window.render3DayComparison();
       }
       
       if (targetTabId === 'tab-performance-trend' && window.loadUploadHistory) {
@@ -1209,5 +1409,6 @@
   <script src="day_monitoring_config.js"></script>
 <script src="app.js"></script>
   <script src="trend.js"></script>
+  <script src="comparison.js"></script>
 </body>
 </html>

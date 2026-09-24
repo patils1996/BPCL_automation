@@ -500,6 +500,11 @@ function recalculateAndRefresh() {
     
     // Day Monitoring header filters
     populateDayMonitoringHeaderFilters();
+    
+    // Notify comparison engine if present
+    if (typeof window.onDashboardDataUpdated === 'function') {
+      window.onDashboardDataUpdated();
+    }
   }
 }
 
@@ -716,6 +721,7 @@ function parseAutomationData(rows, headerRowIdx, headers) {
   
   const autoRspCol = headers.findIndex(h => h.includes('auto rsp') || h.includes('autorsp') || h.includes('auto_rsp'));
   const iotCol = headers.findIndex(h => h.includes('iot enabl') || h.includes('iot enabled') || h.includes('iot_enabled') || h === 'iot');
+  const roOnlineCol = headers.findIndex(h => h.includes("ro's online") || h.includes("ro online") || h === "ro online status" || h === "ro's online status" || h === "online status");
   
   if (roidCol === -1) {
     throw new Error("Could not find 'ROID' or 'RO ID' column in header row!");
@@ -734,6 +740,13 @@ function parseAutomationData(rows, headerRowIdx, headers) {
     if (isNaN(roidVal)) continue;
     
     const iotVal = iotCol !== -1 && row[iotCol] ? String(row[iotCol]).trim() : (roidVal % 3 !== 0 ? "Yes" : "No");
+
+    let roOnlineVal = "";
+    if (roOnlineCol !== -1 && row[roOnlineCol] !== undefined && row[roOnlineCol] !== null && String(row[roOnlineCol]).trim() !== "") {
+      roOnlineVal = String(row[roOnlineCol]).trim();
+    } else if (row.length > 21 && row[21] !== undefined && row[21] !== null && String(row[21]).trim() !== "") {
+      roOnlineVal = String(row[21]).trim();
+    }
     
     rawDataRows.push({
       roid: String(roidVal),
@@ -745,7 +758,8 @@ function parseAutomationData(rows, headerRowIdx, headers) {
       onb_tnk: onbTnkCol !== -1 && row[onbTnkCol] !== undefined ? parseFloat(row[onbTnkCol]) : 0,
       onl_tnk: onlTnkCol !== -1 && row[onlTnkCol] !== undefined ? parseFloat(row[onlTnkCol]) : 0,
       auto_rsp: autoRspCol !== -1 && row[autoRspCol] ? String(row[autoRspCol]).trim() : "No",
-      iot_enabled: iotVal
+      iot_enabled: iotVal,
+      ro_online_status: roOnlineVal
     });
   }
 }
@@ -868,6 +882,7 @@ function processCalculations(rows) {
       tot_onl: tot_onl,
       uptime: uptime,
       status: status,
+      ro_online_status: row.ro_online_status || status,
       condition: condition,
       nano_status: nano_status,
       off_mpd: off_mpd,
