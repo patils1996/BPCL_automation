@@ -2680,48 +2680,15 @@ window.renderDayMonitoringTable = function() {
     tdResp.appendChild(selectResp);
     tr.appendChild(tdResp);
 
-    // Complaint Remarks Select & Text Input
+    // Complaint Remarks Simple Text Input
     const tdRemark = document.createElement('td');
-    const remarkContainer = document.createElement('div');
-    remarkContainer.style.display = 'flex';
-    remarkContainer.style.flexDirection = 'column';
-    remarkContainer.style.gap = '4px';
-
     const inputRemark = document.createElement('input');
     inputRemark.type = 'text';
     inputRemark.className = 'table-input';
-    inputRemark.style.width = '150px';
+    inputRemark.style.width = '180px';
     inputRemark.value = savedRemark;
-    inputRemark.placeholder = 'Type custom remark...';
-
-    const selectRemark = document.createElement('select');
-    selectRemark.className = 'table-select';
-    selectRemark.style.width = '150px';
-    
-    // Function to populate remarks based on responsibility
-    const populateRemarks = (respVal, selectedRemark) => {
-      selectRemark.innerHTML = '';
-      const defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = '--- Select Template ---';
-      selectRemark.appendChild(defaultOpt);
-
-      const remarks = COMPLAINT_REMARKS_DB[respVal] || COMPLAINT_REMARKS_DB[''];
-      remarks.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r;
-        opt.textContent = r;
-        if (r === selectedRemark) {
-          opt.selected = true;
-        }
-        selectRemark.appendChild(opt);
-      });
-    };
-
-    populateRemarks(savedResp, savedRemark);
-    remarkContainer.appendChild(inputRemark);
-    remarkContainer.appendChild(selectRemark);
-    tdRemark.appendChild(remarkContainer);
+    inputRemark.placeholder = 'Enter remarks...';
+    tdRemark.appendChild(inputRemark);
     tr.appendChild(tdRemark);
 
     // Target Date Input
@@ -2729,7 +2696,7 @@ window.renderDayMonitoringTable = function() {
     const inputTargetDate = document.createElement('input');
     inputTargetDate.type = 'date';
     inputTargetDate.className = 'table-input';
-    inputTargetDate.style.width = '120px';
+    inputTargetDate.style.width = '130px';
     inputTargetDate.value = savedTargetDate;
     tdTargetDate.appendChild(inputTargetDate);
     tr.appendChild(tdTargetDate);
@@ -2737,35 +2704,17 @@ window.renderDayMonitoringTable = function() {
     // Event listener for Responsibility
     selectResp.addEventListener('change', (e) => {
       const newResp = e.target.value;
-      populateRemarks(newResp, '');
-      const newRemark = selectRemark.value || inputRemark.value;
+      const currentRemark = inputRemark.value;
       const targetDt = inputTargetDate.value;
       localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
         responsibility: newResp,
-        remark: newRemark,
+        remark: currentRemark,
         targetDate: targetDt
       }));
-      saveSharedDayMonitoringRow(ro, newResp, newRemark, targetDt, true);
+      saveSharedDayMonitoringRow(ro, newResp, currentRemark, targetDt, true);
     });
 
-    // Event listener for Complaint Remarks Dropdown
-    selectRemark.addEventListener('change', (e) => {
-      const selectedTpl = e.target.value;
-      if (selectedTpl) {
-        inputRemark.value = selectedTpl;
-      }
-      const newRemark = inputRemark.value;
-      const currentResp = selectResp.value;
-      const targetDt = inputTargetDate.value;
-      localStorage.setItem('day_remarks_' + ro.roid, JSON.stringify({
-        responsibility: currentResp,
-        remark: newRemark,
-        targetDate: targetDt
-      }));
-      saveSharedDayMonitoringRow(ro, currentResp, newRemark, targetDt, true);
-    });
-
-    // Event listener for Custom Remarks Custom text typing
+    // Event listener for Remarks text input
     inputRemark.addEventListener('change', (e) => {
       const newRemark = e.target.value;
       const currentResp = selectResp.value;
