@@ -721,7 +721,13 @@ function parseAutomationData(rows, headerRowIdx, headers) {
   
   const autoRspCol = headers.findIndex(h => h.includes('auto rsp') || h.includes('autorsp') || h.includes('auto_rsp'));
   const iotCol = headers.findIndex(h => h.includes('iot enabl') || h.includes('iot enabled') || h.includes('iot_enabled') || h === 'iot');
-  const roOnlineCol = headers.findIndex(h => h.includes("ro's online") || h.includes("ro online") || h === "ro online status" || h === "ro's online status" || h === "online status");
+  let roOnlineCol = headers.findIndex(h => h === "ro's online" || h === "ro online status" || h === "ro's online status" || h === "ro online" || h === "ro status");
+  if (roOnlineCol === -1) {
+    roOnlineCol = headers.findIndex(h => h.includes("online") && (h.includes("ro") || h.includes("ro's")) && !h.includes("%") && !h.includes("avg") && !h.includes("mpd") && !h.includes("tank"));
+  }
+  if (roOnlineCol === -1 && headers.length > 21) {
+    roOnlineCol = 21; // Column V is standard index 21
+  }
   
   if (roidCol === -1) {
     throw new Error("Could not find 'ROID' or 'RO ID' column in header row!");
@@ -742,10 +748,17 @@ function parseAutomationData(rows, headerRowIdx, headers) {
     const iotVal = iotCol !== -1 && row[iotCol] ? String(row[iotCol]).trim() : (roidVal % 3 !== 0 ? "Yes" : "No");
 
     let roOnlineVal = "";
-    if (roOnlineCol !== -1 && row[roOnlineCol] !== undefined && row[roOnlineCol] !== null && String(row[roOnlineCol]).trim() !== "") {
-      roOnlineVal = String(row[roOnlineCol]).trim();
-    } else if (row.length > 21 && row[21] !== undefined && row[21] !== null && String(row[21]).trim() !== "") {
-      roOnlineVal = String(row[21]).trim();
+    if (roOnlineCol !== -1 && row[roOnlineCol] !== undefined && row[roOnlineCol] !== null) {
+      const candidate = String(row[roOnlineCol]).trim();
+      if (candidate.toLowerCase().includes('on') || candidate.toLowerCase().includes('part') || candidate.toLowerCase().includes('off')) {
+        roOnlineVal = candidate;
+      }
+    }
+    if (!roOnlineVal && row.length > 21 && row[21] !== undefined && row[21] !== null) {
+      const candidate21 = String(row[21]).trim();
+      if (candidate21.toLowerCase().includes('on') || candidate21.toLowerCase().includes('part') || candidate21.toLowerCase().includes('off')) {
+        roOnlineVal = candidate21;
+      }
     }
     
     rawDataRows.push({

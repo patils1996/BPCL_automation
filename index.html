@@ -640,6 +640,19 @@
                 </div>
               </div>
 
+              <!-- Root-Cause Variation Summary Banner -->
+              <div class="comp-variation-banner" style="background: var(--bg-primary); border-radius: 12px; padding: 0.85rem 1.25rem; width: 100%; box-sizing: border-box; border-left: 4px solid var(--accent-color); box-shadow: var(--shadow-raised-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                  <strong style="color: var(--text-primary); font-size: 0.85rem;">📊 EOD Column V vs Day Monitoring Variation Analysis:</strong>
+                  <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 0.5rem;" id="comp-variation-text">
+                    Calculating variation...
+                  </span>
+                </div>
+                <div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 600;">
+                  💡 Logic: Outlets with Column V downtime + 0 equipment faults are flagged as <strong>Dealer Issues</strong>.
+                </div>
+              </div>
+
               <!-- 8 Clickable Summary Cards (Requirement 7) -->
               <div class="comparison-kpi-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; width: 100%; box-sizing: border-box; margin-top: 0.25rem;">
                 <!-- Card 1: Total -->
@@ -653,14 +666,14 @@
                 <div class="comp-kpi-card border-dealer" id="card-comp-dealer" title="Click to filter by Possible Dealer Issues">
                   <div class="comp-kpi-label" style="color: #d97706;">⚠️ Possible Dealer Issues</div>
                   <div class="comp-kpi-value text-dealer" id="comp-kpi-dealer">0</div>
-                  <div class="comp-kpi-sub">Downtime with Healthy Equip</div>
+                  <div class="comp-kpi-sub" id="comp-kpi-dealer-sub">Downtime with Healthy Equip</div>
                 </div>
 
                 <!-- Card 3: Equipment Issue -->
                 <div class="comp-kpi-card border-equip" id="card-comp-equip" title="Click to filter by Equipment Issues">
                   <div class="comp-kpi-label" style="color: #2563eb;">🛠️ Equipment Issues</div>
                   <div class="comp-kpi-value text-equip" id="comp-kpi-equip">0</div>
-                  <div class="comp-kpi-sub">MPD / Tank hardware fault</div>
+                  <div class="comp-kpi-sub" id="comp-kpi-equip-sub">MPD / Tank hardware fault</div>
                 </div>
 
                 <!-- Card 4: Normal / Healthy -->
