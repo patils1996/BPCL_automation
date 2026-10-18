@@ -5,9 +5,27 @@
 
   // --- EOD Snapshot Data Manager ---
   const EODHistoryManager = {
-    STORAGE_KEY: 'bpcl_eod_history_v2',
+    STORAGE_KEY: 'bpcl_eod_history_v3',
     snapshots: {}, // Format: { "YYYY-MM-DD": { date, displayDate, snapshotTime, totalROs, records: { "CC_CODE": { ... } } } }
     initialized: false,
+
+    getTodayStr(d = new Date()) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    },
+
+    getLast3DayDates(referenceDate = new Date()) {
+      const dates = [];
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate() - i);
+        const dateStr = this.getTodayStr(d);
+        const display = this.formatDisplayDate(dateStr);
+        dates.push({ dateStr, display, dayIndex: 2 - i });
+      }
+      return dates;
+    },
 
     async init() {
       if (this.initialized) return;
@@ -26,7 +44,7 @@
       try {
         if (window.DB && typeof DB.open === 'function') {
           if (!DB.db) await DB.open();
-          const dbSnapshots = await DB.get('config', 'eod_history_v2');
+          const dbSnapshots = await DB.get('config', this.STORAGE_KEY);
           if (dbSnapshots && typeof dbSnapshots === 'object') {
             this.snapshots = Object.assign({}, dbSnapshots, this.snapshots);
           }
@@ -35,9 +53,17 @@
         console.warn('Could not load EOD snapshots from IndexedDB', e);
       }
 
-      // 3. Ensure high-fidelity 3-day history based on live Column V data
-      const dates = this.getDates();
-      if (dates.length < 3) {
+      // Check if stored snapshots contain only obsolete fixed dates (e.g. static 2026-09-22, 2026-09-23, 2026-09-24)
+      const existingDates = this.getDates();
+      const hasObsoleteFixedDates = existingDates.length > 0 && existingDates.every(d => d.startsWith('2026-09-2'));
+      if (hasObsoleteFixedDates) {
+        this.snapshots = {};
+      }
+
+      // 3. Ensure high-fidelity 3-day history based on live Column V data for the rolling last 3 days
+      const last3 = this.getLast3DayDates(new Date());
+      const missingAny = last3.some(item => !this.hasSnapshot(item.dateStr));
+      if (missingAny || this.getDates().length < 3) {
         this.seedInitialHistory();
       }
 
@@ -55,7 +81,7 @@
       }
       try {
         if (window.DB && DB.db) {
-          DB.set('config', 'eod_history_v2', this.snapshots);
+          DB.set('config', this.STORAGE_KEY, this.snapshots);
         }
       } catch (e) {
         console.warn('Failed saving EOD snapshots to IndexedDB', e);
@@ -196,15 +222,12 @@
 
       if (!baseList.length) return;
 
-      const seedDates = [
-        { dateStr: '2026-09-22', display: '22-Sep-2026' },
-        { dateStr: '2026-09-23', display: '23-Sep-2026' },
-        { dateStr: '2026-09-24', display: '24-Sep-2026' }
-      ];
+      // Dynamically compute the rolling last 3 days relative to today
+      const seedDates = this.getLast3DayDates(new Date());
 
-      // Day 3 (2026-09-24) uses the actual live Column V & Equipment Status
-      // Day 2 (2026-09-23) reflects ~20 Offline / 60 Partial
-      // Day 1 (2026-09-22) reflects ~19 Offline / 60 Partial
+      // Day 3 (seedDates[2]) uses the actual live Column V & Equipment Status
+      // Day 2 (seedDates[1]) reflects ~20 Offline / 60 Partial
+      // Day 1 (seedDates[0]) reflects ~19 Offline / 60 Partial
       // Outlets with genuine equipment issues (like Annu Service Station 116219) are preserved as Partial across all 3 days!
       
       seedDates.forEach((sDate, dayIndex) => {
@@ -313,13 +336,20 @@
     syncWithLiveCalculatedData() {
       if (!window.calculatedROs || window.calculatedROs.length === 0) return;
       
-      const dates = this.getDates();
-      // If we don't have 3 dates, or latest date does not have full calculatedROs count, re-seed/align
-      const needReseed = dates.length < 3 || 
-        (this.snapshots[dates[0]] && this.snapshots[dates[0]].totalROs < window.calculatedROs.length);
+      const todayStr = this.getTodayStr();
+      const last3 = this.getLast3DayDates(new Date());
+      const missingAny = last3.some(item => !this.hasSnapshot(item.dateStr));
+
+      // If we don't have all 3 rolling days, or today's snapshot doesn't match outlet count, re-seed/align
+      const needReseed = missingAny || 
+        !this.snapshots[todayStr] ||
+        (this.snapshots[todayStr] && this.snapshots[todayStr].totalROs < window.calculatedROs.length);
 
       if (needReseed) {
         this.seedInitialHistory();
+      } else {
+        // Update today's snapshot with live calculatedROs
+        this.captureSnapshot(todayStr, '22:00', true);
       }
     },
 
@@ -328,10 +358,7 @@
       setInterval(() => {
         const now = new Date();
         if (now.getHours() === 22) {
-          const yyyy = now.getFullYear();
-          const mm = String(now.getMonth() + 1).padStart(2, '0');
-          const dd = String(now.getDate()).padStart(2, '0');
-          const todayStr = `${yyyy}-${mm}-${dd}`;
+          const todayStr = this.getTodayStr(now);
           
           if (!this.hasSnapshot(todayStr) && window.calculatedROs && window.calculatedROs.length > 0) {
             console.log('Automated 10:00 PM EOD Snapshot Trigger firing for', todayStr);
@@ -351,6 +378,7 @@
   // --- Comparison State Controller ---
   const ComparisonState = {
     selectedDates: [], // [day1, day2, day3]
+    userSelectedCustomPeriod: false,
     activeFilterCategory: 'ALL',
     searchQuery: '',
     filterSalesArea: '',
@@ -528,13 +556,15 @@ ${reasonText}`;
     // Auto-update Day 3 snapshot with live calculatedROs if available
     if (window.calculatedROs && window.calculatedROs.length > 0) {
       EODHistoryManager.syncWithLiveCalculatedData();
-      const dates = EODHistoryManager.getDates();
-      const latestDate = dates[0] || '2026-09-24';
-      EODHistoryManager.captureSnapshot(latestDate, '22:00', true);
     }
 
     const availableDates = EODHistoryManager.getDates();
     if (availableDates.length < 3) {
+      EODHistoryManager.seedInitialHistory();
+    }
+
+    const updatedDates = EODHistoryManager.getDates();
+    if (updatedDates.length < 3) {
       const tbody = document.getElementById('comp-table-tbody');
       if (tbody) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
@@ -544,9 +574,19 @@ ${reasonText}`;
       return;
     }
 
-    // Default to the 3 most recent EOD dates
-    if (ComparisonState.selectedDates.length !== 3) {
-      ComparisonState.selectedDates = [availableDates[2], availableDates[1], availableDates[0]]; // [oldest, middle, newest]
+    // Dynamic Last 3 Days Selection
+    const last3 = EODHistoryManager.getLast3DayDates(new Date());
+    const d1Default = last3[0].dateStr; // 2 days ago (Day 1)
+    const d2Default = last3[1].dateStr; // 1 day ago (Day 2)
+    const d3Default = last3[2].dateStr; // Today (Day 3)
+
+    // Default to dynamic rolling last 3 days unless user selected custom period
+    if (!ComparisonState.userSelectedCustomPeriod || ComparisonState.selectedDates.length !== 3) {
+      if (EODHistoryManager.hasSnapshot(d1Default) && EODHistoryManager.hasSnapshot(d2Default) && EODHistoryManager.hasSnapshot(d3Default)) {
+        ComparisonState.selectedDates = [d1Default, d2Default, d3Default];
+      } else {
+        ComparisonState.selectedDates = [updatedDates[2], updatedDates[1], updatedDates[0]];
+      }
     }
 
     const [date1, date2, date3] = ComparisonState.selectedDates;
@@ -1068,6 +1108,7 @@ ${item.fullExplanation}
           return;
         }
 
+        ComparisonState.userSelectedCustomPeriod = true;
         ComparisonState.selectedDates = [d1, d2, d3];
         window.render3DayComparison();
         if (typeof showToast === 'function') {
@@ -1118,9 +1159,6 @@ ${item.fullExplanation}
   window.onDashboardDataUpdated = function() {
     if (window.calculatedROs && window.calculatedROs.length > 0) {
       EODHistoryManager.syncWithLiveCalculatedData();
-      const dates = EODHistoryManager.getDates();
-      const latestDate = dates[0] || '2026-09-24';
-      EODHistoryManager.captureSnapshot(latestDate, '22:00', true);
     }
 
     // If user is currently looking at Comparison tab, refresh it

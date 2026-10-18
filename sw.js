@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bpcl-dashboard-v13';
+const CACHE_NAME = 'bpcl-dashboard-v14';
 const ASSETS = [
   './',
   './index.html',
