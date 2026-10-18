@@ -217,7 +217,9 @@ document.getElementById('btn-confirm-upload-save').addEventListener('click', asy
       const workbook = XLSX.read(data, { type: 'array' });
       
       // Process mappings sheet if exists
-      if (workbook.SheetNames.includes('EO-SO Map')) {
+      if (workbook.SheetNames.includes('TE-SO Map')) {
+        parseMappingsFromSheet(workbook.Sheets['TE-SO Map']);
+      } else if (workbook.SheetNames.includes('EO-SO Map')) {
         parseMappingsFromSheet(workbook.Sheets['EO-SO Map']);
       }
       

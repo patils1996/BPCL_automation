@@ -1,10 +1,12 @@
-const CACHE_NAME = 'bpcl-dashboard-v8';
+const CACHE_NAME = 'bpcl-dashboard-v13';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './trend.js',
+  './comparison.js',
+  './day_monitoring_config.js',
   './sample_data.js',
   './xlsx.full.min.js',
   './chart.umd.min.js',

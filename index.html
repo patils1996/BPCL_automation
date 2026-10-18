@@ -64,10 +64,10 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
         Vendor Summary
       </div>
-      <div class="menu-item" title="EO Summary" onclick="switchSidebarTab('tab-eo-summary')">
+      <div class="menu-item" title="TE Summary" onclick="switchSidebarTab('tab-eo-summary')">
         <!-- Shopping bag/Briefcase SVG icon -->
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-        EO Summary
+        TE Summary
       </div>
       <div class="menu-item" title="SO Summary" onclick="switchSidebarTab('tab-so-summary')">
         <!-- SO SVG icon -->
@@ -150,7 +150,7 @@
           <h2>Upload Monitoring Data</h2>
           <p>Drag and drop your automation raw data Excel (.xlsx, .xls) or CSV export file here</p>
           <p style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);">
-            Note: If your sheet contains an "EO-SO Map" tab, mappings will auto-update.
+            Note: If your sheet contains a "TE-SO Map" or "EO-SO Map" tab, mappings will auto-update.
           </p>
         </div>
         <div style="display: flex; gap: 1rem; align-items: center; justify-content: center; flex-wrap: wrap;">
@@ -244,10 +244,10 @@
                   </div>
                 </div>
                 
-                <!-- Card: Top EOs -->
+                <!-- Card: Top TEs -->
                 <div class="panel-card">
                   <div class="panel-card-header">
-                    <span class="panel-card-title">Executive Officers (EO)</span>
+                    <span class="panel-card-title">Territory Engineer (TE)</span>
                     <span class="panel-card-subtitle">Uptime Performance</span>
                   </div>
                   <div class="chart-canvas-container" style="height: 160px;">
@@ -306,9 +306,9 @@
                   </div>
                 </div>
 
-                <!-- Filter Card: EOs -->
+                <!-- Filter Card: TEs -->
                 <div class="filter-card">
-                  <div class="filter-card-title">Executive Officers</div>
+                  <div class="filter-card-title">Territory Engineers (TE)</div>
                   <div class="filter-items-container" id="dash-filter-eos">
                     <!-- Inserted dynamically -->
                   </div>
@@ -390,10 +390,10 @@
                 </div>
               </div>
 
-              <!-- Col 2: Territory EO (Grouped Bar Chart) -->
+              <!-- Col 2: Territory TE (Grouped Bar Chart) -->
               <div class="panel-card">
                 <div class="panel-card-header" style="border-left: 4px solid #f68b1e; padding-left: 0.75rem;">
-                  <span class="panel-card-title" style="font-weight: 700; color: #1a202c; font-size: 1.1rem;">Territory EO</span>
+                  <span class="panel-card-title" style="font-weight: 700; color: #1a202c; font-size: 1.1rem;">Territory TE</span>
                 </div>
                 <div class="chart-canvas-container" style="height: 300px; margin-top: 1rem;">
                   <canvas id="evcs-eo-chart"></canvas>
@@ -420,7 +420,7 @@
             <div class="table-card-header">
               <h3>Day Monitoring (Offline & Partially Online Sites)</h3>
               <div class="search-filter-controls">
-                <input type="text" class="search-input" id="day-search-input" placeholder="Search by ROID, name, EO, SO...">
+                <input type="text" class="search-input" id="day-search-input" placeholder="Search by ROID, name, TE, SO...">
                 <button class="btn-primary" id="export-day-monitoring-btn">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   Export Day Monitoring
@@ -575,10 +575,12 @@
                         <option value="Unchanged">Unchanged</option>
                       </select>
                     </th>
+                    <th style="text-align: center;">Offline MPDs</th>
+                    <th style="text-align: center;">Offline Tanks</th>
                   </tr>
                 </thead>
                 <tbody id="monitoring-comparison-tbody">
-                  <tr><td colspan="8" style="text-align: center; padding: 2rem;">No data loaded. Please upload monitoring spreadsheet.</td></tr>
+                  <tr><td colspan="10" style="text-align: center; padding: 2rem;">No data loaded. Please upload monitoring spreadsheet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -864,11 +866,11 @@
           </div>
         </div>
 
-        <!-- TAB 3: EO SUMMARIES -->
+        <!-- TAB 3: TE SUMMARIES -->
         <div class="tab-panel" id="tab-eo-summary">
           <div class="table-card">
             <div class="table-card-header">
-              <h3>EO Wise Uptime Summary</h3>
+              <h3>TE Wise Uptime Summary</h3>
               <button class="btn-secondary" id="export-eo-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export CSV
@@ -878,7 +880,7 @@
               <table class="data-table" id="eo-table">
                 <thead>
                   <tr>
-                    <th>EO Name</th>
+                    <th>TE Name</th>
                     <th>Total ROs</th>
                     <th>Fully Online</th>
                     <th>Partially Online</th>
@@ -946,7 +948,7 @@
             <div class="table-card-header">
               <h3>Retail Outlet Explorer</h3>
               <div class="search-filter-controls">
-                <input type="text" class="search-input" id="ro-search-input" placeholder="Search by ROID, Name, EO, RA Vendor, MST...">
+                <input type="text" class="search-input" id="ro-search-input" placeholder="Search by ROID, Name, TE, RA Vendor, MST...">
                 
                 <select class="filter-select" id="ro-filter-status">
                   <option value="">All Statuses</option>
@@ -984,7 +986,7 @@
                     <th data-sort="roid">ROID</th>
                     <th data-sort="outlet_name">Retail Outlet</th>
                     <th data-sort="sales_area">Sales Area</th>
-                    <th data-sort="eo_name">EO Name</th>
+                    <th data-sort="eo_name">TE Name</th>
                     <th data-sort="vendor">RA Vendor</th>
                     <th data-sort="mst_name">MST Name</th>
                     <th data-sort="auto_rsp">Auto RSP</th>
@@ -1031,7 +1033,7 @@
                   <input type="text" id="map-outlet" class="form-control" placeholder="e.g. ALTRADE AGENCIES" required>
                 </div>
                 <div class="form-group">
-                  <label for="map-eo">EO Name *</label>
+                  <label for="map-eo">TE Name *</label>
                   <input type="text" id="map-eo" class="form-control" list="eo-datalist" placeholder="Select or type..." required>
                   <datalist id="eo-datalist">
                     <option value="Vasa Nagamallik"></option>
@@ -1074,7 +1076,7 @@
             <!-- Database Table -->
             <div class="table-card">
               <div class="table-card-header">
-                <h3>EO-SO Mapping Database</h3>
+                <h3>TE-SO Mapping Database</h3>
                 <div class="search-filter-controls">
                   <input type="text" class="search-input" id="map-search-input" placeholder="Search mappings...">
                   
@@ -1094,7 +1096,7 @@
                     <tr>
                       <th data-mapsort="roid">ROID</th>
                       <th data-mapsort="outlet_name">Retail Outlet</th>
-                      <th data-mapsort="eo_name">EO Name</th>
+                      <th data-mapsort="eo_name">TE Name</th>
                       <th data-mapsort="sales_group">Sales Group</th>
                       <th data-mapsort="so_name">SO Name</th>
                       <th data-mapsort="mst_name">MST Name</th>
@@ -1322,7 +1324,7 @@
         if (targetTabId === 'tab-performance-trend' && title === 'performance trend') return true;
         if (targetTabId === 'tab-sales-area' && title === 'sales areas') return true;
         if (targetTabId === 'tab-vendor-summary' && title === 'vendor summary') return true;
-        if (targetTabId === 'tab-eo-summary' && title === 'eo summary') return true;
+        if (targetTabId === 'tab-eo-summary' && (title === 'eo summary' || title === 'te summary')) return true;
         if (targetTabId === 'tab-so-summary' && title === 'so summary') return true;
         if (targetTabId === 'tab-ro-explorer' && title === 'ro explorer') return true;
         if (targetTabId === 'tab-mapping' && title === 'mappings') return true;
@@ -1391,7 +1393,7 @@
           <select id="login-role" class="form-control" style="background-color: var(--bg-primary); border: 1px solid rgba(163, 177, 198, 0.5); font-weight: 600;" required>
             <option value="admin">Admin</option>
             <option value="tm">Territory Manager</option>
-            <option value="eo">Engineering Officer</option>
+            <option value="eo">Territory Engineer (TE)</option>
             <option value="so">Sales Officer</option>
             <option value="vendor">Vendor</option>
           </select>
