@@ -803,32 +803,21 @@
               <div class="nld-header-left">
                 <div class="nld-title-row">
                   <h2 class="nld-title">New Logic Dashboard</h2>
-                  <span id="nld-slot-badge" class="nld-slot-badge slot-1">
+                  <span id="nld-slot-badge" class="nld-slot-badge slot-2">
                     <span class="nld-badge-dot"></span>
-                    <span id="nld-slot-badge-text">Slot 1 Active (Daytime · Pre-5 PM)</span>
+                    <span id="nld-slot-badge-text">2-Slot EOD Data Active</span>
                   </span>
-                  <span id="nld-clock-countdown" class="nld-countdown-pill" title="Automatic 5:00 PM Slot Switch Timer">5:00 PM Trigger: --:--:--</span>
                 </div>
                 <div class="nld-meta-row">
                   <span class="nld-meta-item"><b>Source:</b> <span id="nld-source-name">Live Active Data</span></span>
                   <span class="nld-meta-sep">•</span>
                   <span class="nld-meta-item"><span id="nld-record-count">0</span> Outlets Analyzed</span>
                   <span class="nld-meta-sep">•</span>
-                  <span class="nld-meta-item" id="nld-slot-desc">Slot 1 daytime estimation (&lt; 17:00)</span>
+                  <span class="nld-meta-item" id="nld-slot-desc">Average of row-level online percentage columns (updates after 5:00 PM data is loaded)</span>
                 </div>
               </div>
               
               <div class="nld-header-right">
-                <!-- Slot Mode Switcher Pill Group -->
-                <div class="nld-slot-switcher" title="Choose 2-slot calculation mode">
-                  <span class="nld-switcher-label">2-Slot Mode:</span>
-                  <div class="nld-btn-group">
-                    <button type="button" class="nld-seg-btn active" id="nld-btn-slot-auto" onclick="window.setNewLogicSlotMode('auto')">Auto (5 PM)</button>
-                    <button type="button" class="nld-seg-btn" id="nld-btn-slot-1" onclick="window.setNewLogicSlotMode('slot1')">Slot 1 (&lt; 5 PM)</button>
-                    <button type="button" class="nld-seg-btn" id="nld-btn-slot-2" onclick="window.setNewLogicSlotMode('slot2')">Slot 2 (≥ 5 PM)</button>
-                  </div>
-                </div>
-
                 <!-- Direct MIS Upload -->
                 <label class="nld-upload-btn" title="Upload Automation MIS or Uptime Excel workbook">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -871,15 +860,14 @@
               <div class="nld-kpi-card nld-highlight-card">
                 <div class="nld-kpi-header">
                   <div>
-                    <span class="nld-kpi-label">MPD 2 Slot Uptime</span>
-                    <span class="nld-mini-tag slot-1" id="nld-mpd-slot-tag">Slot 1 Daytime</span>
+                    <span class="nld-kpi-label">MPD 2 Slot Uptime · Average RO online %</span>
                   </div>
                   <span class="nld-kpi-icon slot">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </span>
                 </div>
                 <div class="nld-kpi-val" id="nld-mpd-2slot-val">—</div>
-                <div class="nld-kpi-sub" id="nld-mpd-2slot-sub">Average RO Online % across valid outlets</div>
+                <div class="nld-kpi-sub" id="nld-mpd-2slot-sub">Average of MPD Online% across valid outlets</div>
                 <div class="nld-progress-track">
                   <div class="nld-progress-fill" id="nld-mpd-2slot-bar" style="width: 0%;"></div>
                 </div>
@@ -888,15 +876,14 @@
               <div class="nld-kpi-card nld-highlight-card">
                 <div class="nld-kpi-header">
                   <div>
-                    <span class="nld-kpi-label">ATG 2 Slot Uptime</span>
-                    <span class="nld-mini-tag slot-1" id="nld-atg-slot-tag">Slot 1 Daytime</span>
+                    <span class="nld-kpi-label">ATG 2 Slot Uptime · Average RO online %</span>
                   </div>
                   <span class="nld-kpi-icon slot">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </span>
                 </div>
                 <div class="nld-kpi-val" id="nld-atg-2slot-val">—</div>
-                <div class="nld-kpi-sub" id="nld-atg-2slot-sub">Average Tank Online % across valid outlets</div>
+                <div class="nld-kpi-sub" id="nld-atg-2slot-sub">Average of Tank Online% across valid outlets</div>
                 <div class="nld-progress-track">
                   <div class="nld-progress-fill" id="nld-atg-2slot-bar" style="width: 0%;"></div>
                 </div>
@@ -1636,8 +1623,14 @@
         window.render3DayComparison();
       }
       
-      if (targetTabId === 'tab-new-logic' && window.renderNewLogicDashboard) {
-        window.renderNewLogicDashboard();
+      if (targetTabId === 'tab-new-logic') {
+        const landing = document.getElementById('upload-landing-view');
+        const active = document.getElementById('dashboard-active-view');
+        if (landing) landing.style.display = 'none';
+        if (active) active.style.display = 'flex';
+        if (window.renderNewLogicDashboard) {
+          window.renderNewLogicDashboard();
+        }
       }
       
       if (targetTabId === 'tab-performance-trend' && window.loadUploadHistory) {

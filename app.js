@@ -735,6 +735,9 @@ function parseAutomationData(rows, headerRowIdx, headers) {
   }
   
   const autoRspCol = headers.findIndex(h => h.includes('auto rsp') || h.includes('autorsp') || h.includes('auto_rsp'));
+  const mpdPctCol = headers.findIndex(h => h === 'mpd online%' || h === 'mpd online %' || (h.includes('mpd') && h.includes('online') && h.includes('%')));
+  const tankPctCol = headers.findIndex(h => h === 'tank online%' || h === 'tank online %' || h === 'atg online%' || h === 'atg online %' || (h.includes('tank') && h.includes('online') && h.includes('%')) || (h.includes('atg') && h.includes('online') && h.includes('%')));
+  const avgRoOnlineCol = headers.findIndex(h => h === 'avg ro online%' || h === 'avg ro online %' || (h.includes('avg') && h.includes('online') && h.includes('%')));
   const iotCol = headers.findIndex(h => h.includes('iot enabl') || h.includes('iot enabled') || h.includes('iot_enabled') || h === 'iot');
   let roOnlineCol = headers.findIndex(h => h === "ro's online" || h === "ro online status" || h === "ro's online status" || h === "ro online" || h === "ro status");
   if (roOnlineCol === -1) {
@@ -776,6 +779,14 @@ function parseAutomationData(rows, headerRowIdx, headers) {
       }
     }
     
+    const parsePctVal = col => {
+      if (col === -1 || row[col] === undefined || row[col] === null || String(row[col]).trim() === '') return null;
+      let s = String(row[col]).trim().replace(/,/g, '').replace('%', '');
+      let n = parseFloat(s);
+      if (isNaN(n)) return null;
+      return String(row[col]).includes('%') || n > 1 ? n / 100 : n;
+    };
+
     rawDataRows.push({
       roid: String(roidVal),
       outlet_name: nameCol !== -1 && row[nameCol] ? String(row[nameCol]).trim() : "",
@@ -787,7 +798,10 @@ function parseAutomationData(rows, headerRowIdx, headers) {
       onl_tnk: onlTnkCol !== -1 && row[onlTnkCol] !== undefined ? parseFloat(row[onlTnkCol]) : 0,
       auto_rsp: autoRspCol !== -1 && row[autoRspCol] ? String(row[autoRspCol]).trim() : "No",
       iot_enabled: iotVal,
-      ro_online_status: roOnlineVal
+      ro_online_status: roOnlineVal,
+      mpd_online_pct: parsePctVal(mpdPctCol),
+      tank_online_pct: parsePctVal(tankPctCol),
+      avg_ro_online_pct: parsePctVal(avgRoOnlineCol)
     });
   }
 }
@@ -914,7 +928,10 @@ function processCalculations(rows) {
       condition: condition,
       nano_status: nano_status,
       off_mpd: off_mpd,
-      off_tnk: off_tnk
+      off_tnk: off_tnk,
+      mpd_online_pct: row.mpd_online_pct !== undefined ? row.mpd_online_pct : null,
+      tank_online_pct: row.tank_online_pct !== undefined ? row.tank_online_pct : null,
+      avg_ro_online_pct: row.avg_ro_online_pct !== undefined ? row.avg_ro_online_pct : null
     });
   });
   

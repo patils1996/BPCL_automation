@@ -1,32 +1,30 @@
 // new_logic_dashboard.js - BPCL Belgaum Territory Dynamic MIS & 2-Slot Uptime Engine
-// Based on automation_mis_dashboard.html & Automation_MIS_Dynamic_Uptime_Dashboard.xlsx
+// Faithfully implements logic from automation_mis_dashboard.html & Automation_MIS_Dynamic_Uptime_Dashboard.xlsx
 
 (function() {
   'use strict';
 
-  // --- Configuration & Aliases ---
+  // --- Configuration & Column Aliases ---
   const aliases = {
-    id: ['RO ID', 'roid', 'ro_id', 'BL Code', 'CC Code', 'Outlet Code'],
+    id: ['RO ID', 'ROID', 'roid', 'ro_id', 'BL Code', 'CC Code', 'Outlet Code'],
     name: ['Retail Outlet', 'outlet_name', 'RO Name', 'Outlet Name', 'Station Name'],
     vendor: ['RA Vendor', 'vendor', 'Vendor', 'ra_vendor'],
     area: ['Sales Area', 'sales_area', 'SalesArea', 'Area'],
-    mpdOn: ['No. of On-Boarded MPDs', 'MPD Onboarded', 'onb_mpd', 'On-Boarded MPDs'],
+    mpdOn: ['No. of On-Boarded MPDs', 'MPD Onboarded', 'onb_mpd', 'On-Boarded MPDs', 'MPD On-Boarded'],
     mpdOnline: ['No. of Online MPDs', 'MPD Online', 'onl_mpd', 'Online MPDs'],
     mpdGap: ['MPD Gap', 'mpd_gap'],
-    atgOn: ['No. of On-Boarded Tanks', 'ATG Onboarded', 'onb_tnk', 'On-Boarded Tanks', 'No. of On-Boarded ATG'],
-    atgOnline: ['No. of Online Tanks', 'ATG Online', 'onl_tnk', 'Online Tanks', 'No. of Online ATG'],
+    atgOn: ['No. of On-Boarded Tanks', 'ATG Onboarded', 'onb_tnk', 'On-Boarded Tanks', 'No. of On-Boarded ATG', 'Tank Onboarded'],
+    atgOnline: ['No. of Online Tanks', 'ATG Online', 'onl_tnk', 'Online Tanks', 'No. of Online ATG', 'Tank Online'],
     atgGap: ['ATG Gap', 'atg_gap'],
-    mpdPct: ['MPD Online%', 'MPD Online %', 'mpd_online_pct', 'MPD Online pct'],
-    atgPct: ['Tank Online%', 'Tank Online %', 'ATG Online%', 'ATG Online %', 'tank_online_pct', 'atg_online_pct'],
-    roStatus: ["RO's Online", 'RO Online', 'Outlet Status', 'ro_online_status', 'RO Status', 'status']
+    mpdPct: ['MPD Online%', 'MPD Online %', 'mpd_online_pct', 'MPD Online pct', 'mpd_pct'],
+    atgPct: ['Tank Online%', 'Tank Online %', 'ATG Online%', 'ATG Online %', 'tank_online_pct', 'atg_online_pct', 'tank_pct'],
+    avgRoPct: ['Avg RO Online %', 'Avg RO Online%', 'avg_ro_online_pct', 'Avg RO Online pct'],
+    roStatus: ["RO's Online", 'RO Online', 'RO Status', 'Outlet Status', 'ro_online_status', 'status']
   };
 
   // State
   let allRows = [];
   let sourceFileName = 'Live System Data';
-  let slotMode = 'auto'; // 'auto' | 'slot1' | 'slot2'
-  let activeSlot = 1;    // 1 (< 17:00) | 2 (>= 17:00)
-  let lastEvaluatedHour = -1;
 
   // Table filtering and pagination state
   let searchQuery = '';
@@ -39,7 +37,7 @@
   let currentPage = 1;
   const PAGE_SIZE = 20;
 
-  // --- Utility Functions ---
+  // --- Standard MIS Utility Functions ---
   function norm(s) {
     return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
   }
@@ -63,23 +61,22 @@
   }
 
   function num(v) {
-    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
-    if (v === null || v === undefined || String(v).trim() === '') return 0;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : NaN;
+    if (v === null || v === undefined || String(v).trim() === '') return NaN;
     const s = String(v).trim().replace(/,/g, '').replace('%', '');
     const n = Number(s);
-    if (!Number.isFinite(n)) return 0;
+    if (!Number.isFinite(n)) return NaN;
     return String(v).includes('%') ? n / 100 : n;
   }
 
   function pctValue(v) {
-    if (v === null || v === undefined || String(v).trim() === '') return NaN;
     const n = num(v);
     if (!Number.isFinite(n)) return NaN;
     return n > 1 && n <= 100 ? n / 100 : n;
   }
 
   function fmtPct(v) {
-    return Number.isFinite(v) ? (v * 100).toFixed(2) + '%' : '0.00%';
+    return Number.isFinite(v) ? (v * 100).toFixed(2) + '%' : '—';
   }
 
   function fmtNum(v) {
@@ -96,6 +93,19 @@
     }[c]));
   }
 
+  function sum(rows, key) {
+    return rows.reduce((a, r) => {
+      const n = num(getCol(r, key));
+      return a + (Number.isFinite(n) ? n : 0);
+    }, 0);
+  }
+
+  // Exact 2-slot uptime average matching automation_mis_dashboard.html & Excel =AVERAGE(range)
+  function averagePct(rows, key) {
+    const vals = rows.map(r => pctValue(getCol(r, key))).filter(v => Number.isFinite(v) && v >= 0 && v <= 1);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
+  }
+
   // Determine Outlet Online Status
   function statusOf(r) {
     const rawStatus = String(getCol(r, 'roStatus') || '').trim();
@@ -108,9 +118,9 @@
     }
     const mo = num(getCol(r, 'mpdOn')), mp = num(getCol(r, 'mpdOnline'));
     const ao = num(getCol(r, 'atgOn')), ap = num(getCol(r, 'atgOnline'));
-    if ([mo, mp, ao, ap].some(v => v > 0)) {
-      if ((!mp || mp === 0) && (!ap || ap === 0)) return 'Offline';
-      if ((mo > 0 && mp < mo) || (ao > 0 && ap < ao)) return 'Partially Online';
+    if ([mo, mp, ao, ap].some(Number.isFinite)) {
+      if ((!Number.isFinite(mp) || mp === 0) && (!Number.isFinite(ap) || ap === 0)) return 'Offline';
+      if ((Number.isFinite(mo) && Number.isFinite(mp) && mp < mo) || (Number.isFinite(ao) && Number.isFinite(ap) && ap < ao)) return 'Partially Online';
       return 'Fully Online';
     }
     return 'Unknown';
@@ -121,13 +131,13 @@
     const status = statusOf(r);
     if (status === 'Fully Online') return 'Healthy';
     
-    const mpdOn = num(getCol(r, 'mpdOn'));
-    const mpdOnline = num(getCol(r, 'mpdOnline'));
-    const atgOn = num(getCol(r, 'atgOn'));
-    const atgOnline = num(getCol(r, 'atgOnline'));
+    const mo = num(getCol(r, 'mpdOn'));
+    const mp = num(getCol(r, 'mpdOnline'));
+    const ao = num(getCol(r, 'atgOn'));
+    const ap = num(getCol(r, 'atgOnline'));
 
-    const mpdGap = Math.max(0, mpdOn - mpdOnline);
-    const atgGap = Math.max(0, atgOn - atgOnline);
+    const mpdGap = Math.max(0, (Number.isFinite(mo) ? mo : 0) - (Number.isFinite(mp) ? mp : 0));
+    const atgGap = Math.max(0, (Number.isFinite(ao) ? ao : 0) - (Number.isFinite(ap) ? ap : 0));
 
     if (mpdGap === 0 && atgGap === 0) {
       return 'List 1 - Dealer Dependency';
@@ -136,112 +146,21 @@
     }
   }
 
-  // --- Determine Active Slot (Pre-5 PM Slot 1 vs Post-5 PM Slot 2) ---
-  function computeActiveSlot() {
-    const now = new Date();
-    const currentHour = now.getHours();
-
-    if (slotMode === 'slot1') {
-      return 1;
-    } else if (slotMode === 'slot2') {
-      return 2;
-    } else {
-      // 'auto' mode: checks if clock >= 17:00 (5:00 PM)
-      // Also, if the uploaded data explicitly contains populated 2-slot EOD averages > 0,
-      // it recognizes it as published slot 2 data even if viewed earlier.
-      if (currentHour >= 17) {
-        return 2;
-      }
-      return 1;
-    }
-  }
-
-  // Update Countdown and Slot Badge in the UI
-  function updateClockAndSlotUI() {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentSecond = now.getSeconds();
-
-    const evaluatedSlot = computeActiveSlot();
-    const slotChanged = (evaluatedSlot !== activeSlot);
-    activeSlot = evaluatedSlot;
-
-    const badgeEl = document.getElementById('nld-slot-badge');
-    const badgeTextEl = document.getElementById('nld-slot-badge-text');
-    const countdownEl = document.getElementById('nld-clock-countdown');
-    const slotDescEl = document.getElementById('nld-slot-desc');
-
-    if (activeSlot === 2) {
-      if (badgeEl) {
-        badgeEl.className = 'nld-slot-badge slot-2';
-      }
-      if (badgeTextEl) {
-        badgeTextEl.textContent = 'Slot 2 Active (Post-5 PM Official EOD)';
-      }
-      if (slotDescEl) {
-        slotDescEl.textContent = 'Slot 2 official portal 2-slot EOD uptime active (≥ 17:00)';
-      }
-      if (countdownEl) {
-        countdownEl.textContent = '🟢 Slot 2 Active (Post-5 PM)';
-        countdownEl.style.color = 'var(--accent-green, #16845b)';
-      }
-    } else {
-      if (badgeEl) {
-        badgeEl.className = 'nld-slot-badge slot-1';
-      }
-      if (badgeTextEl) {
-        badgeTextEl.textContent = 'Slot 1 Active (Daytime · Pre-5 PM)';
-      }
-      if (slotDescEl) {
-        slotDescEl.textContent = 'Slot 1 daytime estimated uptime active (< 17:00)';
-      }
-
-      // Calculate time remaining until 17:00:00 today
-      const target5PM = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0);
-      const diffMs = target5PM - now;
-      if (diffMs > 0 && countdownEl) {
-        const diffHrs = Math.floor(diffMs / 3600000);
-        const diffMins = Math.floor((diffMs % 3600000) / 60000);
-        const diffSecs = Math.floor((diffMs % 60000) / 1000);
-        const pad = n => String(n).padStart(2, '0');
-        countdownEl.textContent = `5:00 PM Trigger in ${pad(diffHrs)}:${pad(diffMins)}:${pad(diffSecs)}`;
-        countdownEl.style.color = 'var(--accent-yellow, #d97706)';
-      }
-    }
-
-    // Update segmented toggle buttons
-    ['auto', 'slot1', 'slot2'].forEach(m => {
-      const btn = document.getElementById('nld-btn-slot-' + (m === 'auto' ? 'auto' : (m === 'slot1' ? '1' : '2')));
-      if (btn) {
-        if (slotMode === m) {
-          btn.classList.add('active');
-        } else {
-          btn.classList.remove('active');
-        }
-      }
-    });
-
-    if (slotChanged) {
-      renderDashboardMetrics();
-      renderDataTable();
-    }
-  }
-
   // --- Calculate Metrics Engine ---
   function calculateMetrics() {
-    let totalMPDOn = 0;
-    let totalMPDOnline = 0;
-    let totalATGOn = 0;
-    let totalATGOnline = 0;
+    const totalMPDOn = sum(allRows, 'mpdOn');
+    const totalMPDOnline = sum(allRows, 'mpdOnline');
+    const totalATGOn = sum(allRows, 'atgOn');
+    const totalATGOnline = sum(allRows, 'atgOnline');
 
-    // Slot 2 raw percentage values
-    const rawMpdPcts = [];
-    const rawAtgPcts = [];
+    // 1. Equipment Uptime = Total Online / Total Onboarded
+    const mpdEquipUptime = totalMPDOn ? totalMPDOnline / totalMPDOn : NaN;
+    const atgEquipUptime = totalATGOn ? totalATGOnline / totalATGOn : NaN;
 
-    // Slot 1 daytime estimated ratios
-    const daytimeMpdRatios = [];
-    const daytimeAtgRatios = [];
+    // 2. 2-Slot Uptime = Arithmetic average of row-level online percentage columns
+    // Matching =AVERAGE(tblRaw[MPD Online%]) and =AVERAGE(tblRaw[Tank Online%])
+    const mpd2SlotUptime = averagePct(allRows, 'mpdPct');
+    const atg2SlotUptime = averagePct(allRows, 'atgPct');
 
     const statuses = {
       'Fully Online': 0,
@@ -256,88 +175,30 @@
     const vendorCounts = {};
 
     allRows.forEach(r => {
-      const mo = num(getCol(r, 'mpdOn'));
-      const mp = num(getCol(r, 'mpdOnline'));
-      const ao = num(getCol(r, 'atgOn'));
-      const ap = num(getCol(r, 'atgOnline'));
-
-      totalMPDOn += mo;
-      totalMPDOnline += mp;
-      totalATGOn += ao;
-      totalATGOnline += ap;
-
-      // Slot 2 values from published percentage columns
-      const mpdPctVal = pctValue(getCol(r, 'mpdPct'));
-      if (Number.isFinite(mpdPctVal) && mpdPctVal >= 0 && mpdPctVal <= 1) {
-        rawMpdPcts.push(mpdPctVal);
-      }
-
-      const atgPctVal = pctValue(getCol(r, 'atgPct'));
-      if (Number.isFinite(atgPctVal) && atgPctVal >= 0 && atgPctVal <= 1) {
-        rawAtgPcts.push(atgPctVal);
-      }
-
-      // Slot 1 daytime ratio calculations
-      if (mo > 0) {
-        daytimeMpdRatios.push(Math.min(1, Math.max(0, mp / mo)));
-      }
-      if (ao > 0) {
-        daytimeAtgRatios.push(Math.min(1, Math.max(0, ap / ao)));
-      }
-
-      // Status
       const st = statusOf(r);
       statuses[st] = (statuses[st] || 0) + 1;
 
-      // List 1 vs List 2
       if (st === 'Offline' || st === 'Partially Online') {
-        const mpdGap = Math.max(0, mo - mp);
-        const atgGap = Math.max(0, ao - ap);
+        const mo = num(getCol(r, 'mpdOn'));
+        const mp = num(getCol(r, 'mpdOnline'));
+        const ao = num(getCol(r, 'atgOn'));
+        const ap = num(getCol(r, 'atgOnline'));
+
+        const mpdGap = Math.max(0, (Number.isFinite(mo) ? mo : 0) - (Number.isFinite(mp) ? mp : 0));
+        const atgGap = Math.max(0, (Number.isFinite(ao) ? ao : 0) - (Number.isFinite(ap) ? ap : 0));
+
         if (mpdGap === 0 && atgGap === 0) {
           list1Count++;
         } else {
           list2Count++;
         }
 
-        // Affected outlets breakdown by area and vendor
         const area = String(getCol(r, 'area') || 'Unassigned').trim();
         const vendor = String(getCol(r, 'vendor') || 'Unassigned').trim();
         areaCounts[area] = (areaCounts[area] || 0) + 1;
         vendorCounts[vendor] = (vendorCounts[vendor] || 0) + 1;
       }
     });
-
-    // 1. Equipment Uptime
-    const mpdEquipUptime = totalMPDOn > 0 ? (totalMPDOnline / totalMPDOn) : NaN;
-    const atgEquipUptime = totalATGOn > 0 ? (totalATGOnline / totalATGOn) : NaN;
-
-    // 2. 2-Slot Uptime depending on active slot
-    let mpd2SlotUptime = NaN;
-    let atg2SlotUptime = NaN;
-
-    if (activeSlot === 2) {
-      // Post-5 PM: Official average of raw percentage columns
-      if (rawMpdPcts.length > 0) {
-        mpd2SlotUptime = rawMpdPcts.reduce((a, b) => a + b, 0) / rawMpdPcts.length;
-      } else if (daytimeMpdRatios.length > 0) {
-        // Fallback if file has no percentage columns
-        mpd2SlotUptime = daytimeMpdRatios.reduce((a, b) => a + b, 0) / daytimeMpdRatios.length;
-      }
-
-      if (rawAtgPcts.length > 0) {
-        atg2SlotUptime = rawAtgPcts.reduce((a, b) => a + b, 0) / rawAtgPcts.length;
-      } else if (daytimeAtgRatios.length > 0) {
-        atg2SlotUptime = daytimeAtgRatios.reduce((a, b) => a + b, 0) / daytimeAtgRatios.length;
-      }
-    } else {
-      // Slot 1: Daytime estimated slot uptime based on row-level online/onboarded ratios
-      if (daytimeMpdRatios.length > 0) {
-        mpd2SlotUptime = daytimeMpdRatios.reduce((a, b) => a + b, 0) / daytimeMpdRatios.length;
-      }
-      if (daytimeAtgRatios.length > 0) {
-        atg2SlotUptime = daytimeAtgRatios.reduce((a, b) => a + b, 0) / daytimeAtgRatios.length;
-      }
-    }
 
     const totalOutlets = allRows.length;
     const fullyOnline = statuses['Fully Online'] || 0;
@@ -376,52 +237,52 @@
     const countEl = document.getElementById('nld-record-count');
     if (countEl) countEl.textContent = fmtNum(m.totalOutlets);
 
-    // 1. KPI Cards
+    // Update 2-Slot 5:00 PM Status Badge
+    const badgeEl = document.getElementById('nld-slot-badge');
+    const badgeTextEl = document.getElementById('nld-slot-badge-text');
+    const slotDescEl = document.getElementById('nld-slot-desc');
+
+    const has2SlotData = (Number.isFinite(m.mpd2SlotUptime) && m.mpd2SlotUptime > 0.05) ||
+                         (Number.isFinite(m.atg2SlotUptime) && m.atg2SlotUptime > 0.05);
+
+    if (has2SlotData) {
+      if (badgeEl) badgeEl.className = 'nld-slot-badge slot-2';
+      if (badgeTextEl) badgeTextEl.textContent = '2-Slot EOD Data Active (Post-5 PM Official)';
+      if (slotDescEl) slotDescEl.textContent = 'Official 2-slot uptime calculated from raw MPD Online% & Tank Online% columns';
+    } else {
+      if (badgeEl) badgeEl.className = 'nld-slot-badge slot-1';
+      if (badgeTextEl) badgeTextEl.textContent = 'Pre-5 PM Data (2-Slot EOD Pending)';
+      if (slotDescEl) slotDescEl.textContent = '2-slot uptime in this file will update after 5:00 PM data is uploaded';
+    }
+
+    // 1. Top 4 KPI Cards
     const mpdEquipVal = document.getElementById('nld-mpd-equip-val');
     const mpdEquipSub = document.getElementById('nld-mpd-equip-sub');
     const mpdEquipBar = document.getElementById('nld-mpd-equip-bar');
     if (mpdEquipVal) mpdEquipVal.textContent = fmtPct(m.mpdEquipUptime);
-    if (mpdEquipSub) mpdEquipSub.textContent = `${fmtNum(m.totalMPDOnline)} online / ${fmtNum(m.totalMPDOn)} onboarded · ${fmtNum(m.mpdGap)} gap`;
-    if (mpdEquipBar) mpdEquipBar.style.width = `${Math.min(100, Math.max(0, (m.mpdEquipUptime || 0) * 100))}%`;
+    if (mpdEquipSub) mpdEquipSub.textContent = `${fmtNum(m.totalMPDOnline)} online / ${fmtNum(m.totalMPDOn)} onboarded · ${fmtNum(m.mpdGap)} offline`;
+    if (mpdEquipBar) mpdEquipBar.style.width = (Number.isFinite(m.mpdEquipUptime) ? Math.max(0, Math.min(100, m.mpdEquipUptime * 100)) : 0) + '%';
 
     const atgEquipVal = document.getElementById('nld-atg-equip-val');
     const atgEquipSub = document.getElementById('nld-atg-equip-sub');
     const atgEquipBar = document.getElementById('nld-atg-equip-bar');
     if (atgEquipVal) atgEquipVal.textContent = fmtPct(m.atgEquipUptime);
-    if (atgEquipSub) atgEquipSub.textContent = `${fmtNum(m.totalATGOnline)} online / ${fmtNum(m.totalATGOn)} onboarded · ${fmtNum(m.atgGap)} gap`;
-    if (atgEquipBar) atgEquipBar.style.width = `${Math.min(100, Math.max(0, (m.atgEquipUptime || 0) * 100))}%`;
+    if (atgEquipSub) atgEquipSub.textContent = `${fmtNum(m.totalATGOnline)} online / ${fmtNum(m.totalATGOn)} onboarded · ${fmtNum(m.atgGap)} offline`;
+    if (atgEquipBar) atgEquipBar.style.width = (Number.isFinite(m.atgEquipUptime) ? Math.max(0, Math.min(100, m.atgEquipUptime * 100)) : 0) + '%';
 
     const mpd2Val = document.getElementById('nld-mpd-2slot-val');
     const mpd2Sub = document.getElementById('nld-mpd-2slot-sub');
     const mpd2Bar = document.getElementById('nld-mpd-2slot-bar');
-    const mpdSlotTag = document.getElementById('nld-mpd-slot-tag');
     if (mpd2Val) mpd2Val.textContent = fmtPct(m.mpd2SlotUptime);
-    if (mpd2Bar) mpd2Bar.style.width = `${Math.min(100, Math.max(0, (m.mpd2SlotUptime || 0) * 100))}%`;
-    if (mpdSlotTag) {
-      mpdSlotTag.textContent = activeSlot === 2 ? 'Slot 2 Official EOD' : 'Slot 1 Daytime';
-      mpdSlotTag.className = activeSlot === 2 ? 'nld-mini-tag slot-2' : 'nld-mini-tag slot-1';
-    }
-    if (mpd2Sub) {
-      mpd2Sub.textContent = activeSlot === 2
-        ? 'Average of MPD Online% across valid outlets'
-        : 'Daytime estimated MPD online ratio average';
-    }
+    if (mpd2Bar) mpd2Bar.style.width = (Number.isFinite(m.mpd2SlotUptime) ? Math.max(0, Math.min(100, m.mpd2SlotUptime * 100)) : 0) + '%';
+    if (mpd2Sub) mpd2Sub.textContent = 'Average of MPD Online% across valid outlets';
 
     const atg2Val = document.getElementById('nld-atg-2slot-val');
     const atg2Sub = document.getElementById('nld-atg-2slot-sub');
     const atg2Bar = document.getElementById('nld-atg-2slot-bar');
-    const atgSlotTag = document.getElementById('nld-atg-slot-tag');
     if (atg2Val) atg2Val.textContent = fmtPct(m.atg2SlotUptime);
-    if (atg2Bar) atg2Bar.style.width = `${Math.min(100, Math.max(0, (m.atg2SlotUptime || 0) * 100))}%`;
-    if (atgSlotTag) {
-      atgSlotTag.textContent = activeSlot === 2 ? 'Slot 2 Official EOD' : 'Slot 1 Daytime';
-      atgSlotTag.className = activeSlot === 2 ? 'nld-mini-tag slot-2' : 'nld-mini-tag slot-1';
-    }
-    if (atg2Sub) {
-      atg2Sub.textContent = activeSlot === 2
-        ? 'Average of Tank Online% across valid outlets'
-        : 'Daytime estimated Tank online ratio average';
-    }
+    if (atg2Bar) atg2Bar.style.width = (Number.isFinite(m.atg2SlotUptime) ? Math.max(0, Math.min(100, m.atg2SlotUptime * 100)) : 0) + '%';
+    if (atg2Sub) atg2Sub.textContent = 'Average of Tank Online% across valid outlets';
 
     // 2. Overview Count Cards
     const cntTot = document.getElementById('nld-count-total');
@@ -448,38 +309,33 @@
 
     // 4. Equipment Matrix Table
     const matrixBody = document.getElementById('nld-equipment-matrix-body');
-    const matrixSlotLbl = document.getElementById('nld-matrix-slot-lbl');
-    if (matrixSlotLbl) {
-      matrixSlotLbl.textContent = activeSlot === 2 ? 'Slot 2 (Post-5 PM Official)' : 'Slot 1 (Daytime Estimated)';
-    }
-
     if (matrixBody) {
       matrixBody.innerHTML = `
         <tr>
-          <td><b>Onboarded units</b></td>
+          <td>Onboarded units</td>
           <td class="num">${fmtNum(m.totalMPDOn)}</td>
           <td class="num">${fmtNum(m.totalATGOn)}</td>
         </tr>
         <tr>
-          <td><b>Online units</b></td>
+          <td>Online units</td>
           <td class="num" style="color: var(--accent-green, #16845b);">${fmtNum(m.totalMPDOnline)}</td>
           <td class="num" style="color: var(--accent-green, #16845b);">${fmtNum(m.totalATGOnline)}</td>
         </tr>
         <tr>
-          <td><b>Offline / Gap units</b></td>
+          <td>Offline / gap units</td>
           <td class="num" style="color: ${m.mpdGap > 0 ? 'var(--accent-red, #dc2626)' : 'inherit'}; font-weight: 700;">${fmtNum(m.mpdGap)}</td>
           <td class="num" style="color: ${m.atgGap > 0 ? 'var(--accent-red, #dc2626)' : 'inherit'}; font-weight: 700;">${fmtNum(m.atgGap)}</td>
         </tr>
         <tr style="background: rgba(0, 63, 135, 0.03);">
-          <td><b>Equipment Uptime</b></td>
+          <td><b>Equipment uptime</b></td>
           <td class="num"><b>${fmtPct(m.mpdEquipUptime)}</b></td>
           <td class="num"><b>${fmtPct(m.atgEquipUptime)}</b></td>
         </tr>
         <tr style="background: rgba(0, 63, 135, 0.06);">
           <td>
-            <b>Average 2-Slot Uptime</b>
+            <b>Average 2-slot uptime</b>
             <div style="font-size: 0.68rem; color: var(--text-muted); font-weight: normal;">
-              ${activeSlot === 2 ? 'Official 5:00 PM EOD Averages' : 'Daytime Slot 1 Row Ratios'}
+              Arithmetic average of row-level online percentage columns
             </div>
           </td>
           <td class="num"><b style="color: var(--navy, #003F87); font-size: 0.95rem;">${fmtPct(m.mpd2SlotUptime)}</b></td>
@@ -497,7 +353,7 @@
     if (vendorBadge) vendorBadge.textContent = `${fmtNum(m.affectedOutlets)} affected`;
     renderBars('nld-vendor-bars', m.vendorCounts, m.affectedOutlets, false);
 
-    // 6. Populate Filter Dropdowns once if needed
+    // 6. Populate Filter Dropdowns
     populateFilterDropdowns();
   }
 
@@ -625,8 +481,8 @@
         va = num(va);
         vb = num(vb);
       } else if (['mpdPct', 'atgPct'].includes(sortField)) {
-        va = pctValue(va) || 0;
-        vb = pctValue(vb) || 0;
+        va = pctValue(va);
+        vb = pctValue(vb);
       } else {
         va = String(va || '').toLowerCase();
         vb = String(vb || '').toLowerCase();
@@ -679,30 +535,18 @@
 
       const mo = num(getCol(r, 'mpdOn'));
       const mp = num(getCol(r, 'mpdOnline'));
-      const mpdGap = Math.max(0, mo - mp);
+      const mpdGap = Math.max(0, (Number.isFinite(mo) ? mo : 0) - (Number.isFinite(mp) ? mp : 0));
 
       const ao = num(getCol(r, 'atgOn'));
       const ap = num(getCol(r, 'atgOnline'));
-      const atgGap = Math.max(0, ao - ap);
+      const atgGap = Math.max(0, (Number.isFinite(ao) ? ao : 0) - (Number.isFinite(ap) ? ap : 0));
 
-      // Percentage display based on active slot
-      let mpdPctDisplay = '—';
-      let atgPctDisplay = '—';
-
+      // Display actual row-level percentage from file
       const rawMpdPct = pctValue(getCol(r, 'mpdPct'));
       const rawAtgPct = pctValue(getCol(r, 'atgPct'));
 
-      if (activeSlot === 2 && Number.isFinite(rawMpdPct)) {
-        mpdPctDisplay = fmtPct(rawMpdPct);
-      } else if (mo > 0) {
-        mpdPctDisplay = fmtPct(mp / mo);
-      }
-
-      if (activeSlot === 2 && Number.isFinite(rawAtgPct)) {
-        atgPctDisplay = fmtPct(rawAtgPct);
-      } else if (ao > 0) {
-        atgPctDisplay = fmtPct(ap / ao);
-      }
+      const mpdPctDisplay = fmtPct(rawMpdPct);
+      const atgPctDisplay = fmtPct(rawAtgPct);
 
       const st = statusOf(r);
       let statusPillClass = 'nld-pill-green';
@@ -726,12 +570,12 @@
           <td>${escapeHtml(vendor)}</td>
           <td>${escapeHtml(area)}</td>
           <td><span class="nld-status-pill ${statusPillClass}">${escapeHtml(st)}</span></td>
-          <td class="num">${fmtNum(mo)}</td>
-          <td class="num">${fmtNum(mp)}</td>
+          <td class="num">${Number.isFinite(mo) ? fmtNum(mo) : '—'}</td>
+          <td class="num">${Number.isFinite(mp) ? fmtNum(mp) : '—'}</td>
           <td class="num" style="color: ${mpdGap > 0 ? 'var(--accent-red, #dc2626)' : 'inherit'}; font-weight: ${mpdGap > 0 ? '700' : 'normal'};">${fmtNum(mpdGap)}</td>
           <td class="num">${mpdPctDisplay}</td>
-          <td class="num">${fmtNum(ao)}</td>
-          <td class="num">${fmtNum(ap)}</td>
+          <td class="num">${Number.isFinite(ao) ? fmtNum(ao) : '—'}</td>
+          <td class="num">${Number.isFinite(ap) ? fmtNum(ap) : '—'}</td>
           <td class="num" style="color: ${atgGap > 0 ? 'var(--accent-red, #dc2626)' : 'inherit'}; font-weight: ${atgGap > 0 ? '700' : 'normal'};">${fmtNum(atgGap)}</td>
           <td class="num">${atgPctDisplay}</td>
           <td style="text-align: center;">${classPill}</td>
@@ -757,13 +601,12 @@
       'Onboarded MPDs',
       'Online MPDs',
       'MPD Gap',
-      'MPD Online % (Active Slot)',
+      'MPD Online %',
       'Onboarded ATG',
       'Online ATG',
       'ATG Gap',
-      'Tank Online % (Active Slot)',
-      'Classification',
-      'Active Slot Mode'
+      'Tank Online %',
+      'Classification'
     ];
 
     const csvData = [headers];
@@ -777,32 +620,18 @@
 
       const mo = num(getCol(r, 'mpdOn'));
       const mp = num(getCol(r, 'mpdOnline'));
-      const mpdGap = Math.max(0, mo - mp);
+      const mpdGap = Math.max(0, (Number.isFinite(mo) ? mo : 0) - (Number.isFinite(mp) ? mp : 0));
 
       const ao = num(getCol(r, 'atgOn'));
       const ap = num(getCol(r, 'atgOnline'));
-      const atgGap = Math.max(0, ao - ap);
-
-      let mpdPctVal = '';
-      let atgPctVal = '';
+      const atgGap = Math.max(0, (Number.isFinite(ao) ? ao : 0) - (Number.isFinite(ap) ? ap : 0));
 
       const rawMpdPct = pctValue(getCol(r, 'mpdPct'));
       const rawAtgPct = pctValue(getCol(r, 'atgPct'));
 
-      if (activeSlot === 2 && Number.isFinite(rawMpdPct)) {
-        mpdPctVal = fmtPct(rawMpdPct);
-      } else if (mo > 0) {
-        mpdPctVal = fmtPct(mp / mo);
-      }
-
-      if (activeSlot === 2 && Number.isFinite(rawAtgPct)) {
-        atgPctVal = fmtPct(rawAtgPct);
-      } else if (ao > 0) {
-        atgPctVal = fmtPct(ap / ao);
-      }
-
+      const mpdPctVal = fmtPct(rawMpdPct);
+      const atgPctVal = fmtPct(rawAtgPct);
       const classification = listClassificationOf(r);
-      const slotLabel = activeSlot === 2 ? 'Slot 2 (Post-5 PM Official)' : 'Slot 1 (Daytime Estimated)';
 
       csvData.push([
         id,
@@ -810,16 +639,15 @@
         vendor,
         area,
         st,
-        mo,
-        mp,
+        Number.isFinite(mo) ? mo : '',
+        Number.isFinite(mp) ? mp : '',
         mpdGap,
         mpdPctVal,
-        ao,
-        ap,
+        Number.isFinite(ao) ? ao : '',
+        Number.isFinite(ap) ? ap : '',
         atgGap,
         atgPctVal,
-        classification,
-        slotLabel
+        classification
       ]);
     });
 
@@ -830,12 +658,12 @@
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `BPCL_New_Logic_Dashboard_Slot${activeSlot}_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `BPCL_Automation_MIS_Export_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
 
-  // --- External Sync & File Upload Handlers ---
+  // --- Data Synchronization Handler ---
   function syncFromGlobalAppState() {
     // 1. Check if raw sheet objects exist from latest file upload
     if (window.rawSheetObjects && Array.isArray(window.rawSheetObjects) && window.rawSheetObjects.length > 0) {
@@ -856,8 +684,9 @@
         'No. of On-Boarded Tanks': ro.onb_tnk,
         'No. of Online Tanks': ro.onl_tnk,
         "RO's Online": ro.ro_online_status || ro.status,
-        'MPD Online%': (ro.onb_mpd > 0 ? (ro.onl_mpd / ro.onb_mpd) : 0),
-        'Tank Online%': (ro.onb_tnk > 0 ? (ro.onl_tnk / ro.onb_tnk) : 0)
+        'MPD Online%': (ro.mpd_online_pct !== null && ro.mpd_online_pct !== undefined) ? ro.mpd_online_pct : '',
+        'Tank Online%': (ro.tank_online_pct !== null && ro.tank_online_pct !== undefined) ? ro.tank_online_pct : '',
+        'Avg RO Online %': (ro.avg_ro_online_pct !== null && ro.avg_ro_online_pct !== undefined) ? ro.avg_ro_online_pct : ''
       }));
       sourceFileName = 'Active System Dashboard Data';
       return true;
@@ -875,8 +704,9 @@
         'No. of On-Boarded Tanks': r.onb_tnk,
         'No. of Online Tanks': r.onl_tnk,
         "RO's Online": r.ro_online_status,
-        'MPD Online%': (r.onb_mpd > 0 ? (r.onl_mpd / r.onb_mpd) : 0),
-        'Tank Online%': (r.onb_tnk > 0 ? (r.onl_tnk / r.onb_tnk) : 0)
+        'MPD Online%': (r.mpd_online_pct !== null && r.mpd_online_pct !== undefined) ? r.mpd_online_pct : '',
+        'Tank Online%': (r.tank_online_pct !== null && r.tank_online_pct !== undefined) ? r.tank_online_pct : '',
+        'Avg RO Online %': (r.avg_ro_online_pct !== null && r.avg_ro_online_pct !== undefined) ? r.avg_ro_online_pct : ''
       }));
       sourceFileName = 'Raw Data Stream';
       return true;
@@ -893,7 +723,9 @@
         'No. of Online MPDs': r.onl_mpd,
         'No. of On-Boarded Tanks': r.onb_tnk,
         'No. of Online Tanks': r.onl_tnk,
-        "RO's Online": (r.onb_mpd === r.onl_mpd && r.onb_tnk === r.onl_tnk) ? 'Fully Online' : 'Partially Online'
+        "RO's Online": (r.onb_mpd === r.onl_mpd && r.onb_tnk === r.onl_tnk) ? 'Fully Online' : 'Partially Online',
+        'MPD Online%': r.onb_mpd > 0 ? (r.onl_mpd / r.onb_mpd) : '',
+        'Tank Online%': r.onb_tnk > 0 ? (r.onl_tnk / r.onb_tnk) : ''
       }));
       sourceFileName = 'Sample Belgaum Territory Data';
       return true;
@@ -945,7 +777,10 @@
       window.lastUploadedFileName = file.name;
 
       currentPage = 1;
-      updateClockAndSlotUI();
+      const landing = document.getElementById('upload-landing-view');
+      const active = document.getElementById('dashboard-active-view');
+      if (landing) landing.style.display = 'none';
+      if (active) active.style.display = 'flex';
       renderDashboardMetrics();
       renderDataTable();
 
@@ -961,23 +796,8 @@
   // Public render function called when tab opens or data updates
   function renderNewLogicDashboard() {
     syncFromGlobalAppState();
-    updateClockAndSlotUI();
     renderDashboardMetrics();
     renderDataTable();
-  }
-
-  // Public interactive controls
-  function setSlotMode(mode) {
-    if (!['auto', 'slot1', 'slot2'].includes(mode)) return;
-    slotMode = mode;
-    updateClockAndSlotUI();
-    renderDashboardMetrics();
-    renderDataTable();
-
-    if (window.showToast) {
-      const label = mode === 'auto' ? 'Auto (5:00 PM Trigger)' : (mode === 'slot1' ? 'Slot 1 (< 5 PM Daytime)' : 'Slot 2 (≥ 5 PM Evening EOD)');
-      window.showToast(`Switched 2-Slot Mode to: ${label}`, 'info');
-    }
   }
 
   function filterByCategory(cat) {
@@ -1028,15 +848,9 @@
     renderDataTable();
   }
 
-  // Initialize clock listener (checks every 10 seconds for real-time responsiveness and 5:00 PM trigger)
-  setInterval(() => {
-    updateClockAndSlotUI();
-  }, 10000);
-
   // Expose on window
   window.renderNewLogicDashboard = renderNewLogicDashboard;
   window.handleNewLogicFileUpload = handleNewLogicFileUpload;
-  window.setNewLogicSlotMode = setSlotMode;
   window.filterNewLogicByCategory = filterByCategory;
   window.handleNewLogicFilterChange = handleFilterChange;
   window.sortNewLogicTable = sortTable;
