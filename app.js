@@ -505,6 +505,11 @@ function recalculateAndRefresh() {
     if (typeof window.onDashboardDataUpdated === 'function') {
       window.onDashboardDataUpdated();
     }
+    
+    // Notify New Logic Dashboard
+    if (typeof window.renderNewLogicDashboard === 'function') {
+      window.renderNewLogicDashboard();
+    }
   }
 }
 
@@ -547,6 +552,14 @@ window.handleUploadedFile = function(file) {
       
       const sheet = workbook.Sheets[rawDataSheetName];
       const parsedData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      
+      // Cache raw sheet JSON objects for New Logic Dashboard
+      try {
+        window.rawSheetObjects = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: true });
+        window.lastUploadedFileName = file.name;
+      } catch (eRaw) {
+        console.warn('Could not cache rawSheetObjects', eRaw);
+      }
       
       if (parsedData.length < 3) {
         showToast("Invalid sheet structure: not enough rows", "error");
