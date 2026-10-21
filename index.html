@@ -797,272 +797,142 @@
 
         <!-- TAB: NEW LOGIC DASHBOARD -->
         <div class="tab-panel" id="tab-new-logic">
-          <div class="nld-container">
-            <!-- Header bar with title, source file, slot indicator & controls -->
-            <div class="nld-header-card">
-              <div class="nld-header-left">
-                <div class="nld-title-row">
-                  <h2 class="nld-title">New Logic Dashboard</h2>
-                  <span id="nld-slot-badge" class="nld-slot-badge slot-2">
-                    <span class="nld-badge-dot"></span>
-                    <span id="nld-slot-badge-text">2-Slot EOD Data Active</span>
-                  </span>
+          <div class="mis-wrap">
+            <div class="mis-header">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <h1>Automation Uptime MIS Dashboard</h1>
+                  <p>Belgaum Territory · Upload the latest Excel MIS to refresh all dashboard metrics automatically</p>
                 </div>
-                <div class="nld-meta-row">
-                  <span class="nld-meta-item"><b>Source:</b> <span id="nld-source-name">Live Active Data</span></span>
-                  <span class="nld-meta-sep">•</span>
-                  <span class="nld-meta-item"><span id="nld-record-count">0</span> Outlets Analyzed</span>
-                  <span class="nld-meta-sep">•</span>
-                  <span class="nld-meta-item" id="nld-slot-desc">Average of row-level online percentage columns (updates after 5:00 PM data is loaded)</span>
-                </div>
-              </div>
-              
-              <div class="nld-header-right">
-                <!-- Direct MIS Upload -->
-                <label class="nld-upload-btn" title="Upload Automation MIS or Uptime Excel workbook">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                  Upload MIS Excel
-                  <input type="file" id="nld-direct-file-input" accept=".xlsx, .xls, .xlsm" style="display:none;" onchange="window.handleNewLogicFileUpload(this.files[0])">
-                </label>
-              </div>
-            </div>
-
-            <!-- Top 4 KPI Cards -->
-            <div class="nld-kpi-grid">
-              <div class="nld-kpi-card">
-                <div class="nld-kpi-header">
-                  <span class="nld-kpi-label">MPD Equipment Uptime</span>
-                  <span class="nld-kpi-icon mpd">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                  </span>
-                </div>
-                <div class="nld-kpi-val" id="nld-mpd-equip-val">—</div>
-                <div class="nld-kpi-sub" id="nld-mpd-equip-sub">0 online / 0 onboarded</div>
-                <div class="nld-progress-track">
-                  <div class="nld-progress-fill" id="nld-mpd-equip-bar" style="width: 0%;"></div>
-                </div>
-              </div>
-
-              <div class="nld-kpi-card">
-                <div class="nld-kpi-header">
-                  <span class="nld-kpi-label">ATG Equipment Uptime</span>
-                  <span class="nld-kpi-icon atg">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-                  </span>
-                </div>
-                <div class="nld-kpi-val" id="nld-atg-equip-val">—</div>
-                <div class="nld-kpi-sub" id="nld-atg-equip-sub">0 online / 0 onboarded</div>
-                <div class="nld-progress-track">
-                  <div class="nld-progress-fill" id="nld-atg-equip-bar" style="width: 0%;"></div>
-                </div>
-              </div>
-
-              <div class="nld-kpi-card nld-highlight-card">
-                <div class="nld-kpi-header">
-                  <div>
-                    <span class="nld-kpi-label">MPD 2 Slot Uptime · Average RO online %</span>
-                  </div>
-                  <span class="nld-kpi-icon slot">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  </span>
-                </div>
-                <div class="nld-kpi-val" id="nld-mpd-2slot-val">—</div>
-                <div class="nld-kpi-sub" id="nld-mpd-2slot-sub">Average of MPD Online% across valid outlets</div>
-                <div class="nld-progress-track">
-                  <div class="nld-progress-fill" id="nld-mpd-2slot-bar" style="width: 0%;"></div>
-                </div>
-              </div>
-
-              <div class="nld-kpi-card nld-highlight-card">
-                <div class="nld-kpi-header">
-                  <div>
-                    <span class="nld-kpi-label">ATG 2 Slot Uptime · Average RO online %</span>
-                  </div>
-                  <span class="nld-kpi-icon slot">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  </span>
-                </div>
-                <div class="nld-kpi-val" id="nld-atg-2slot-val">—</div>
-                <div class="nld-kpi-sub" id="nld-atg-2slot-sub">Average of Tank Online% across valid outlets</div>
-                <div class="nld-progress-track">
-                  <div class="nld-progress-fill" id="nld-atg-2slot-bar" style="width: 0%;"></div>
+                <div>
+                  <a href="automation_mis_dashboard.html" target="_blank" class="mis-upload" style="text-decoration: none; background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.4); font-size: 12px; padding: 7px 12px;" title="Open standalone dashboard in new browser window">
+                    ↗ Open Standalone
+                  </a>
                 </div>
               </div>
             </div>
 
-            <!-- Overview 5 Counts Cards (Clickable for drill-down) -->
-            <div class="nld-counts-grid">
-              <div class="nld-count-card active" id="nld-card-filter-all" onclick="window.filterNewLogicByCategory('all')">
-                <div class="nld-count-label">Total Outlets</div>
-                <div class="nld-count-val" id="nld-count-total">0</div>
-                <div class="nld-count-sub">All records</div>
+            <div class="mis-toolbar">
+              <label class="mis-upload">
+                ⬆ Upload Excel MIS
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm">
+              </label>
+              <div class="mis-hint">
+                Select your latest workbook. The page reads the <b>RAW Data</b> sheet and recalculates equipment uptime, 2-slot uptime, outlet status, sales-area and vendor summaries. No manual formula updates required.
               </div>
-              <div class="nld-count-card" id="nld-card-filter-fully" onclick="window.filterNewLogicByCategory('fully')">
-                <div class="nld-count-label">Fully Online</div>
-                <div class="nld-count-val success" id="nld-count-fully">0</div>
-                <div class="nld-count-sub" id="nld-pct-fully">0% of outlets</div>
-              </div>
-              <div class="nld-count-card" id="nld-card-filter-affected" onclick="window.filterNewLogicByCategory('affected')">
-                <div class="nld-count-label">Offline / Partial</div>
-                <div class="nld-count-val danger" id="nld-count-affected">0</div>
-                <div class="nld-count-sub" id="nld-pct-affected">0% of outlets</div>
-              </div>
-              <div class="nld-count-card" id="nld-card-filter-list1" onclick="window.filterNewLogicByCategory('list1')">
-                <div class="nld-count-label">List 1 · Dealer Dependency</div>
-                <div class="nld-count-val warning" id="nld-count-list1">0</div>
-                <div class="nld-count-sub">All equipment healthy (0 gap)</div>
-              </div>
-              <div class="nld-count-card" id="nld-card-filter-list2" onclick="window.filterNewLogicByCategory('list2')">
-                <div class="nld-count-label">List 2 · Team Analysis</div>
-                <div class="nld-count-val primary" id="nld-count-list2">0</div>
-                <div class="nld-count-sub">Equipment fault (Gap &gt; 0)</div>
-              </div>
+              <div id="status" class="mis-status">Waiting for Excel file…</div>
             </div>
 
-            <!-- Two Column Layout: Distributions and Summary Matrix -->
-            <div class="nld-two-col-grid">
-              <!-- Left: Outlet Status Distribution -->
-              <div class="nld-panel">
-                <div class="nld-panel-header">
-                  <h3>Outlet Status Distribution</h3>
-                  <span class="nld-panel-badge">All Outlets</span>
+            <div id="empty" class="mis-panel mis-empty">
+              Upload <b>Automation_MIS_15.10.2026_Dashboard.xlsx</b> or your latest version to display the dashboard. The file is processed locally in your browser; it is not sent to a server. Internet access is required to load the Excel-reading library on first use.
+            </div>
+
+            <div id="dashboard" style="display:none">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+                <div>
+                  <div class="mis-label">SOURCE WORKBOOK</div>
+                  <div id="fileName" style="font-weight:750;margin-top:5px;font-size:16px;"></div>
                 </div>
-                <div id="nld-status-bars" class="nld-bars-container">
-                  <!-- Generated bars -->
+                <div id="reportMeta" class="mis-sub" style="font-weight:600;"></div>
+              </div>
+
+              <h2 class="mis-section-title">Uptime KPIs</h2>
+              <div class="mis-cards">
+                <div class="mis-card">
+                  <div class="mis-label">MPD Equipment Uptime</div>
+                  <div class="mis-value" id="mpdEquip">—</div>
+                  <div class="mis-sub" id="mpdEquipSub"></div>
+                  <div class="mis-track"><div class="mis-fill" id="mpdEquipBar"></div></div>
+                </div>
+                <div class="mis-card">
+                  <div class="mis-label">ATG Equipment Uptime</div>
+                  <div class="mis-value" id="atgEquip">—</div>
+                  <div class="mis-sub" id="atgEquipSub"></div>
+                  <div class="mis-track"><div class="mis-fill" id="atgEquipBar"></div></div>
+                </div>
+                <div class="mis-card">
+                  <div class="mis-label">MPD 2 Slot Uptime · Average RO online %</div>
+                  <div class="mis-value" id="mpd2">—</div>
+                  <div class="mis-sub">Average of MPD Online% across valid outlets</div>
+                  <div class="mis-track"><div class="mis-fill" id="mpd2Bar"></div></div>
+                </div>
+                <div class="mis-card">
+                  <div class="mis-label">ATG 2 Slot Uptime · Average RO online %</div>
+                  <div class="mis-value" id="atg2">—</div>
+                  <div class="mis-sub">Average of Tank Online% across valid outlets</div>
+                  <div class="mis-track"><div class="mis-fill" id="atg2Bar"></div></div>
                 </div>
               </div>
 
-              <!-- Right: Equipment Summary Matrix Table -->
-              <div class="nld-panel">
-                <div class="nld-panel-header">
-                  <h3>Equipment Summary</h3>
-                  <span class="nld-panel-badge">MPD vs ATG Matrix</span>
+              <h2 class="mis-section-title">Outlet and equipment overview</h2>
+              <div class="mis-cards-3">
+                <div class="mis-card">
+                  <div class="mis-label">Total outlets</div>
+                  <div class="mis-value" id="totalRO">—</div>
+                  <div class="mis-sub">Unique non-empty RO records</div>
                 </div>
-                <div class="nld-matrix-wrap">
-                  <table class="nld-matrix-table">
+                <div class="mis-card">
+                  <div class="mis-label">Fully online outlets</div>
+                  <div class="mis-value" id="fullyRO">—</div>
+                  <div class="mis-sub" id="fullyPct"></div>
+                </div>
+                <div class="mis-card">
+                  <div class="mis-label">Offline / partially online</div>
+                  <div class="mis-value" id="affectedRO">—</div>
+                  <div class="mis-sub" id="affectedPct"></div>
+                </div>
+              </div>
+
+              <div class="mis-layout" style="margin-top:16px">
+                <div class="mis-panel">
+                  <h3>Outlet status distribution</h3>
+                  <div id="statusBars"></div>
+                </div>
+                <div class="mis-panel">
+                  <h3>Equipment summary</h3>
+                  <table class="mis-metrics-table">
                     <thead>
                       <tr>
                         <th>Metric</th>
-                        <th style="text-align: right;">MPD</th>
-                        <th style="text-align: right;">ATG</th>
+                        <th style="text-align:right">MPD</th>
+                        <th style="text-align:right">ATG</th>
                       </tr>
                     </thead>
-                    <tbody id="nld-equipment-matrix-body">
-                      <!-- Generated rows -->
-                    </tbody>
+                    <tbody id="equipmentTable"></tbody>
+                  </table>
+                  <p class="mis-footer">Equipment uptime = total online units ÷ total onboarded units. 2-slot uptime here uses the arithmetic average of the row-level online percentage columns, matching the MIS definition.</p>
+                </div>
+              </div>
+
+              <div class="mis-layout" style="margin-top:16px">
+                <div class="mis-panel">
+                  <h3>Affected outlets by sales area</h3>
+                  <div id="areaBars"></div>
+                </div>
+                <div class="mis-panel">
+                  <h3>Affected outlets by RA vendor</h3>
+                  <div id="vendorBars"></div>
+                </div>
+              </div>
+
+              <h2 class="mis-section-title">Raw outlet data</h2>
+              <div class="mis-panel">
+                <div class="mis-filters">
+                  <input id="searchBox" placeholder="Search RO, ID, vendor, area…">
+                  <select id="statusFilter"><option value="">All outlet statuses</option></select>
+                  <button id="exportCsv" class="mis-upload" style="border:0">Export filtered CSV</button>
+                </div>
+                <div class="mis-sub" id="tableCount" style="margin-bottom:9px"></div>
+                <div class="mis-tablewrap">
+                  <table>
+                    <thead id="rawHead"></thead>
+                    <tbody id="rawBody"></tbody>
                   </table>
                 </div>
-                <div class="nld-calc-note" id="nld-matrix-footnote">
-                  Equipment uptime = total online ÷ total onboarded. 2-slot uptime reflects active slot logic (<span id="nld-matrix-slot-lbl">Slot 1</span>).
-                </div>
-              </div>
-            </div>
-
-            <!-- Two Column Layout: Affected Outlets Breakdown -->
-            <div class="nld-two-col-grid" style="margin-top: 1rem;">
-              <!-- Left: Affected Outlets by Sales Area -->
-              <div class="nld-panel">
-                <div class="nld-panel-header">
-                  <h3>Affected Outlets by Sales Area</h3>
-                  <span class="nld-panel-badge" id="nld-area-affected-badge">0 affected</span>
-                </div>
-                <div id="nld-area-bars" class="nld-bars-container">
-                  <!-- Generated bars -->
-                </div>
               </div>
 
-              <!-- Right: Affected Outlets by RA Vendor -->
-              <div class="nld-panel">
-                <div class="nld-panel-header">
-                  <h3>Affected Outlets by RA Vendor</h3>
-                  <span class="nld-panel-badge" id="nld-vendor-affected-badge">0 affected</span>
-                </div>
-                <div id="nld-vendor-bars" class="nld-bars-container">
-                  <!-- Generated bars -->
-                </div>
-              </div>
-            </div>
-
-            <!-- Raw Outlet Data Explorer Card -->
-            <div class="nld-panel" style="margin-top: 1rem;">
-              <div class="nld-panel-header" style="flex-wrap: wrap; gap: 0.75rem;">
-                <div>
-                  <h3 style="margin: 0;">Raw Outlet Data Explorer</h3>
-                  <div class="nld-subtext" id="nld-table-count-sub">Showing 0 of 0 outlets</div>
-                </div>
-
-                <div class="nld-table-actions">
-                  <button class="nld-action-btn export" id="nld-export-csv-btn" onclick="window.exportNewLogicCSV()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Export Filtered CSV
-                  </button>
-                </div>
-              </div>
-
-              <!-- Filter Toolbar -->
-              <div class="nld-toolbar">
-                <div class="nld-search-box">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input type="text" id="nld-search-input" placeholder="Search RO ID, name, vendor, sales area..." oninput="window.handleNewLogicFilterChange()">
-                </div>
-
-                <select id="nld-status-select" class="nld-select" onchange="window.handleNewLogicFilterChange()">
-                  <option value="">All Outlet Statuses</option>
-                  <option value="Fully Online">Fully Online</option>
-                  <option value="Partially Online">Partially Online</option>
-                  <option value="Offline">Offline</option>
-                </select>
-
-                <select id="nld-category-select" class="nld-select" onchange="window.handleNewLogicFilterChange()">
-                  <option value="all">All Lists (List 1 &amp; List 2)</option>
-                  <option value="list1">List 1 · Dealer Dependency (Healthy Equipment)</option>
-                  <option value="list2">List 2 · Team Analysis (Equipment Gap)</option>
-                </select>
-
-                <select id="nld-area-select" class="nld-select" onchange="window.handleNewLogicFilterChange()">
-                  <option value="">All Sales Areas</option>
-                </select>
-
-                <select id="nld-vendor-select" class="nld-select" onchange="window.handleNewLogicFilterChange()">
-                  <option value="">All Vendors</option>
-                </select>
-              </div>
-
-              <!-- Table Wrap -->
-              <div class="nld-table-wrap">
-                <table class="nld-data-table">
-                  <thead>
-                    <tr>
-                      <th onclick="window.sortNewLogicTable('id')">RO ID ⬍</th>
-                      <th onclick="window.sortNewLogicTable('name')">Retail Outlet ⬍</th>
-                      <th onclick="window.sortNewLogicTable('vendor')">RA Vendor ⬍</th>
-                      <th onclick="window.sortNewLogicTable('area')">Sales Area ⬍</th>
-                      <th onclick="window.sortNewLogicTable('status')">RO's Online Status ⬍</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('mpdOn')">Onb MPD</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('mpdOnline')">Onl MPD</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('mpdGap')">MPD Gap</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('mpdPct')">MPD Online %</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('atgOn')">Onb ATG</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('atgOnline')">Onl ATG</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('atgGap')">ATG Gap</th>
-                      <th style="text-align: right;" onclick="window.sortNewLogicTable('atgPct')">Tank Online %</th>
-                      <th style="text-align: center;">Classification</th>
-                    </tr>
-                  </thead>
-                  <tbody id="nld-table-body">
-                    <tr><td colspan="14" style="text-align: center; padding: 2rem;">Loading outlet data...</td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Pagination Footer -->
-              <div class="nld-pagination-bar">
-                <div id="nld-page-info" class="nld-page-info">Page 1 of 1</div>
-                <div class="nld-page-controls">
-                  <button type="button" class="nld-page-btn" id="nld-btn-prev" onclick="window.changeNewLogicPage(-1)">Previous</button>
-                  <span id="nld-page-number" class="nld-page-number">1</span>
-                  <button type="button" class="nld-page-btn" id="nld-btn-next" onclick="window.changeNewLogicPage(1)">Next</button>
-                </div>
+              <div class="mis-footer">
+                Calculation notes: blank, invalid, or zero-denominator equipment rows are excluded from the relevant percentage average. Equipment totals are summed across the RAW Data rows. If the uploaded workbook uses different column headers, check that the RAW Data sheet has the standard headers for onboarded/online MPDs, onboarded/online tanks, MPD Online%, Tank Online%, Sales Area, RA Vendor, and RO's Online.
               </div>
             </div>
           </div>
