@@ -1746,8 +1746,8 @@ function sortROs() {
   const asc = roSortAsc;
   
   roFilteredList.sort((a, b) => {
-    let valA = a[key];
-    let valB = b[key];
+    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : a[key];
+    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : b[key];
     
     // Numeric conversions
     if (typeof valA === 'string' && !isNaN(valA) && valA !== "") valA = parseFloat(valA);
@@ -1804,10 +1804,11 @@ function renderROExplorerPage() {
       <td>${ro.tot_onl.toFixed(1)}</td>
       <td style="font-weight: 500;">${(ro.uptime * 100).toFixed(1)}%</td>
       <td><span class="badge ${statusClass}">${ro.status}</span></td>
-      <td><span class="badge ${nlClass}">${nlStatus}</span></td>
+      
       <td>${ro.off_mpd.toFixed(0)}</td>
       <td>${ro.off_tnk.toFixed(0)}</td>
       <td title="${ro.condition}">${ro.nano_status}</td>
+      <td><span class="badge ${nlClass}">${nlStatus}</span></td>
     `;
     tbody.appendChild(tr);
   });
@@ -1894,8 +1895,8 @@ function sortMappings() {
   const asc = mapSortAsc;
   
   mapFilteredList.sort((a, b) => {
-    let valA = a[key];
-    let valB = b[key];
+    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : a[key];
+    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : b[key];
     
     if (key === 'roid') {
       valA = parseInt(valA);
@@ -2022,7 +2023,7 @@ function exportToCSV(dataList, filename, isSalesArea = false, isRODetails = fals
   if (isSalesArea) {
     headers = ["Sales Area", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   } else if (isRODetails) {
-    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Status", "New Logic Status", "Offline MPD", "Offline Tank", "NANO Status"];
+    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Status", "Offline MPD", "Offline Tank", "NANO Status", "2 Slot Status"];
   } else {
     headers = ["Name", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   }
@@ -2048,10 +2049,11 @@ function exportToCSV(dataList, filename, isSalesArea = false, isRODetails = fals
         row.tot_onl,
         (row.uptime * 100).toFixed(2) + "%",
         row.status,
-        row.new_logic_status || row.ro_online_status || row.status,
+
         row.off_mpd,
         row.off_tnk,
-        row.nano_status
+        row.nano_status,
+        row.new_logic_status || row.ro_online_status || row.status
       ];
     } else {
       rowVals = [
