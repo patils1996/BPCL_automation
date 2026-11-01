@@ -408,7 +408,8 @@ function setupEventListeners() {
     });
   }
   document.getElementById('export-ro-btn').addEventListener('click', () => {
-    exportToCSV(calculatedROs, 'RetailOutlet_Details.csv', false, true);
+    const listToExport = (roFilteredList && roFilteredList.length >= 0) ? roFilteredList : calculatedROs;
+    exportToCSV(listToExport, 'RetailOutlet_Details.csv', false, true);
   });
   const exportDayBtn = document.getElementById('export-day-monitoring-btn');
   if (exportDayBtn) {
@@ -2023,7 +2024,7 @@ function exportToCSV(dataList, filename, isSalesArea = false, isRODetails = fals
   if (isSalesArea) {
     headers = ["Sales Area", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   } else if (isRODetails) {
-    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Status", "Offline MPD", "Offline Tank", "NANO Status", "2 Slot Status"];
+    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Equipment Status", "Offline MPD", "Offline Tank", "NANO Status", "2 Slot Status"];
   } else {
     headers = ["Name", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   }
@@ -2730,6 +2731,8 @@ window.renderDayMonitoringTable = function() {
     return true;
   });
 
+
+  window.dayMonitoringFilteredList = list;
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
     return;
@@ -2865,7 +2868,8 @@ window.renderDayMonitoringTable = function() {
 };
 
 window.exportDayMonitoringData = function() {
-  const list = calculatedROs.filter(ro => ro.status === "Partially Online" || ro.status === "Offline");
+  const list = window.dayMonitoringFilteredList !== undefined ? window.dayMonitoringFilteredList : calculatedROs.filter(ro => ro.status === "Partially Online" || ro.status === "Offline");
+
   if (list.length === 0) {
     showToast("No data to export", "error");
     return;
