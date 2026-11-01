@@ -2427,6 +2427,11 @@ function getSharedDayData(roid) {
 function setSharedDayData(roid, data) {
   window.dayMonitoringShared[String(roid)] = Object.assign({}, data);
 }
+window.getSharedDayData = getSharedDayData;
+window.setSharedDayData = setSharedDayData;
+window.dayMonitoringApiRequest = dayMonitoringApiRequest;
+if (false) {
+}
 
 async function dayMonitoringApiRequest(method, payload) {
   const cfg = getDayMonitoringApiConfig();
@@ -2482,6 +2487,7 @@ window.loadSharedDayMonitoring = async function(silent = true) {
         cloudStatus.textContent = `Shared Day Monitoring: synced ${window.dayMonitoringSyncState.lastSync.toLocaleTimeString()}.`;
       }
       if (typeof renderDayMonitoringTable === 'function') renderDayMonitoringTable();
+      if (typeof window.renderOutletsStatusTable === 'function') window.renderOutletsStatusTable();
       if (typeof window.startAutomaticDayMonitoringSync === 'function') window.startAutomaticDayMonitoringSync();
     }
   } catch (error) {
@@ -2492,9 +2498,9 @@ window.loadSharedDayMonitoring = async function(silent = true) {
   }
 };
 
-window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, targetDate = '', showMessage = false) {
+window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, targetDate = '', showMessage = false, bromaNo = '', entryDate = '') {
   const row = {
-    date: getDayMonitoringDate(),
+    date: entryDate || getDayMonitoringDate(),
     roid: String(ro.roid),
     outletName: ro.outlet_name || '',
     salesArea: ro.sales_area || '',
@@ -2507,6 +2513,7 @@ window.saveSharedDayMonitoringRow = async function(ro, responsibility, remark, t
     responsibility: responsibility || '',
     remark: remark || '',
     targetDate: targetDate || '',
+    bromaNo: bromaNo || '',
     updatedBy: getCurrentDashboardUserName(),
     updatedAt: new Date().toISOString(),
     territory: 'Belgaum'
@@ -2611,7 +2618,7 @@ window.startAutomaticDayMonitoringSync = function() {
   window.dayMonitoringPollTimer = setInterval(async () => {
     // Only pull if the user is not actively typing or selecting inside the table
     const activeEl = document.activeElement;
-    const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT') && activeEl.closest('#day-monitoring-tbody');
+    const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT') && (activeEl.closest('#day-monitoring-tbody') || activeEl.closest('#outlets-status-tbody'));
     if (!isEditing) {
       try {
         await window.loadSharedDayMonitoring(true);

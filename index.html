@@ -988,8 +988,20 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                   Export CSV
                 </button>
+
+                <label class="btn-primary" id="import-outlets-status-lbl" style="display: inline-flex; align-items: center; gap: 0.45rem; cursor: pointer; margin: 0; background-color: var(--accent-teal, #0d9488); box-shadow: var(--shadow-raised-sm);" title="Import Excel or CSV with remarks, BROMA No, Responsibility, Date">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                  Import
+                  <input type="file" id="import-outlets-status-input" accept=".xlsx,.xls,.xlsm,.csv" style="display: none;">
+                </label>
+
+                <button class="btn-secondary" id="sync-outlets-status-btn" title="Sync latest remarks and BROMA details from cloud" style="display: inline-flex; align-items: center; gap: 0.45rem;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                  Sync Cloud
+                </button>
               </div>
             </div>
+            <div id="outlets-status-cloud-status" style="font-size:0.75rem; margin:0 1.75rem 0.5rem; opacity:0.8; font-weight:600;">Shared Live Sync: Connected to cloud (auto-sync enabled).</div>
 
             <div class="table-responsive-container">
               <table class="data-table" id="outlets-status-table">

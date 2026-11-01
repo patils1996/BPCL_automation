@@ -3,12 +3,17 @@
  * Displays 2-Slot Partial & Offline Outlets with interactive tracking:
  * RO ID, RO Name, Sales area, Vendor, EO, MST, IOT/WFCC, 2 slot status,
  * Responsibility, Complaint remarks, BROMA No, Date, Target date.
+ * Supports:
+ * - Excel & CSV Import of Remarks, BROMA No, Responsibility, Dates
+ * - Multi-user Live Cloud Sync via Google Sheets Apps Script
+ * - Immediate persistence and cross-device synchronization on Git links
  */
 
 (function() {
   let outletsStatusSortField = 'roid';
   let outletsStatusSortAsc = true;
   let outletsStatusFilteredList = [];
+  const debounceTimers = {};
 
   function getTodayDateStr() {
     const now = new Date();
@@ -18,36 +23,68 @@
     return `${year}-${month}-${day}`;
   }
 
+  function normalizeDateStr(val) {
+    if (!val) return '';
+    if (typeof val === 'number') {
+      // Excel serial date to YYYY-MM-DD
+      const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+      return date.toISOString().split('T')[0];
+    }
+    const str = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    // DD-MM-YYYY or DD/MM/YYYY
+    const dmyMatch = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+    if (dmyMatch) {
+      const day = dmyMatch[1].padStart(2, '0');
+      const month = dmyMatch[2].padStart(2, '0');
+      const year = dmyMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+    return str;
+  }
+
   function getStoredOutletData(roid) {
-    const raw = localStorage.getItem('outlets_status_' + roid);
+    const key = String(roid);
+    const sharedDay = (typeof getSharedDayData === 'function') 
+      ? getSharedDayData(key) 
+      : ((window.dayMonitoringShared && window.dayMonitoringShared[key]) || {});
+
+    const raw = localStorage.getItem('outlets_status_' + key);
     let data = {};
     if (raw) {
       try { data = JSON.parse(raw); } catch(e) {}
     }
-    // Fallbacks from day_remarks_ if available
-    const dayRaw = localStorage.getItem('day_remarks_' + roid);
+
+    const dayRaw = localStorage.getItem('day_remarks_' + key);
     let dayData = {};
     if (dayRaw) {
       try { dayData = JSON.parse(dayRaw); } catch(e) {}
     }
-    const sharedDay = (typeof getSharedDayData === 'function') ? getSharedDayData(roid) : {};
+
+    // Cloud values from shared Google Sheets backend take priority so any user opening the git link sees the latest updates!
+    const resp = sharedDay.responsibility || data.responsibility || dayData.responsibility || '';
+    const remark = sharedDay.remark || data.remark || dayData.remark || '';
+    const broma = sharedDay.bromaNo || sharedDay.broma_no || data.broma_no || dayData.broma_no || '';
+    const dt = sharedDay.date || data.date || dayData.date || getTodayDateStr();
+    const targetDt = sharedDay.targetDate || sharedDay.target_date || data.target_date || dayData.targetDate || '';
 
     return {
-      responsibility: data.responsibility ?? sharedDay.responsibility ?? dayData.responsibility ?? '',
-      remark: data.remark ?? sharedDay.remark ?? dayData.remark ?? '',
-      broma_no: data.broma_no ?? dayData.broma_no ?? '',
-      date: data.date ?? dayData.date ?? getTodayDateStr(),
-      target_date: data.target_date ?? sharedDay.targetDate ?? dayData.targetDate ?? ''
+      responsibility: resp,
+      remark: remark,
+      broma_no: broma,
+      date: dt,
+      target_date: targetDt
     };
   }
 
-  function saveStoredOutletData(roid, updates) {
-    const current = getStoredOutletData(roid);
+  async function saveStoredOutletData(roid, updates, syncCloud = true) {
+    const key = String(roid);
+    const current = getStoredOutletData(key);
     const updated = Object.assign({}, current, updates);
-    localStorage.setItem('outlets_status_' + roid, JSON.stringify(updated));
+    localStorage.setItem('outlets_status_' + key, JSON.stringify(updated));
 
-    // Also sync to day_remarks_ so responsibility & remarks remain unified across views
-    const dayRaw = localStorage.getItem('day_remarks_' + roid);
+    // Also sync to day_remarks_
+    const dayRaw = localStorage.getItem('day_remarks_' + key);
     let dayData = {};
     if (dayRaw) {
       try { dayData = JSON.parse(dayRaw); } catch(e) {}
@@ -57,15 +94,49 @@
     dayData.targetDate = updated.target_date;
     dayData.broma_no = updated.broma_no;
     dayData.date = updated.date;
-    localStorage.setItem('day_remarks_' + roid, JSON.stringify(dayData));
+    localStorage.setItem('day_remarks_' + key, JSON.stringify(dayData));
 
-    // If day monitoring cloud save is available, trigger background save
-    if (typeof saveSharedDayMonitoringRow === 'function') {
-      const ro = (window.calculatedROs || []).find(r => String(r.roid) === String(roid));
-      if (ro) {
-        saveSharedDayMonitoringRow(ro, updated.responsibility, updated.remark, updated.target_date, true);
+    // Update memory shared object immediately
+    if (window.dayMonitoringShared) {
+      const existing = window.dayMonitoringShared[key] || {};
+      window.dayMonitoringShared[key] = Object.assign({}, existing, {
+        roid: key,
+        responsibility: updated.responsibility,
+        remark: updated.remark,
+        targetDate: updated.target_date,
+        bromaNo: updated.broma_no,
+        date: updated.date,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    if (syncCloud) {
+      const ro = (window.calculatedROs || []).find(r => String(r.roid) === key) || { roid: key };
+      if (typeof window.saveSharedDayMonitoringRow === 'function') {
+        window.saveSharedDayMonitoringRow(
+          ro,
+          updated.responsibility,
+          updated.remark,
+          updated.target_date,
+          false,
+          updated.broma_no,
+          updated.date
+        );
       }
     }
+  }
+
+  function debouncedSave(roid, updates, delay = 500) {
+    const key = String(roid);
+    // Save to local storage immediately
+    saveStoredOutletData(key, updates, false);
+
+    // Debounce cloud sync so typing doesn't overload the network
+    if (debounceTimers[key]) clearTimeout(debounceTimers[key]);
+    debounceTimers[key] = setTimeout(() => {
+      saveStoredOutletData(key, updates, true);
+      delete debounceTimers[key];
+    }, delay);
   }
 
   function get2SlotStatus(ro) {
@@ -195,7 +266,6 @@
     filtered.forEach(ro => {
       const tr = document.createElement('tr');
       const nlStatus = get2SlotStatus(ro);
-
       const stored = getStoredOutletData(ro.roid);
 
       // RO ID
@@ -253,7 +323,7 @@
         selResp.appendChild(opt);
       });
       selResp.addEventListener('change', (e) => {
-        saveStoredOutletData(ro.roid, { responsibility: e.target.value });
+        saveStoredOutletData(ro.roid, { responsibility: e.target.value }, true);
       });
       tdResp.appendChild(selResp);
       tr.appendChild(tdResp);
@@ -266,8 +336,11 @@
       inpRemark.style.width = '180px';
       inpRemark.placeholder = 'Enter remarks...';
       inpRemark.value = stored.remark || '';
+      inpRemark.addEventListener('input', (e) => {
+        debouncedSave(ro.roid, { remark: e.target.value });
+      });
       inpRemark.addEventListener('change', (e) => {
-        saveStoredOutletData(ro.roid, { remark: e.target.value.trim() });
+        saveStoredOutletData(ro.roid, { remark: e.target.value.trim() }, true);
       });
       tdRemark.appendChild(inpRemark);
       tr.appendChild(tdRemark);
@@ -280,8 +353,11 @@
       inpBroma.style.width = '110px';
       inpBroma.placeholder = 'BROMA No';
       inpBroma.value = stored.broma_no || '';
+      inpBroma.addEventListener('input', (e) => {
+        debouncedSave(ro.roid, { broma_no: e.target.value });
+      });
       inpBroma.addEventListener('change', (e) => {
-        saveStoredOutletData(ro.roid, { broma_no: e.target.value.trim() });
+        saveStoredOutletData(ro.roid, { broma_no: e.target.value.trim() }, true);
       });
       tdBroma.appendChild(inpBroma);
       tr.appendChild(tdBroma);
@@ -294,7 +370,7 @@
       inpDate.style.width = '130px';
       inpDate.value = stored.date || getTodayDateStr();
       inpDate.addEventListener('change', (e) => {
-        saveStoredOutletData(ro.roid, { date: e.target.value });
+        saveStoredOutletData(ro.roid, { date: e.target.value }, true);
       });
       tdDate.appendChild(inpDate);
       tr.appendChild(tdDate);
@@ -307,7 +383,7 @@
       inpTarget.style.width = '130px';
       inpTarget.value = stored.target_date || '';
       inpTarget.addEventListener('change', (e) => {
-        saveStoredOutletData(ro.roid, { target_date: e.target.value });
+        saveStoredOutletData(ro.roid, { target_date: e.target.value }, true);
       });
       tdTarget.appendChild(inpTarget);
       tr.appendChild(tdTarget);
@@ -375,6 +451,155 @@
     if (window.showToast) window.showToast(`Exported ${list.length} outlets to CSV!`, 'success');
   }
 
+  /**
+   * Import Excel / CSV with Remarks, BROMA No, Responsibility, Date, Target Date
+   */
+  function handleOutletsStatusImportFile(file) {
+    if (!file) return;
+    if (window.showToast) window.showToast('Reading file for import...', 'info');
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        if (!rows || rows.length === 0) {
+          if (window.showToast) window.showToast('No rows found in the imported file.', 'error');
+          return;
+        }
+
+        const keys = Object.keys(rows[0] || {});
+        function findKey(patterns) {
+          return keys.find(k => {
+            const clean = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return patterns.some(p => clean.includes(p));
+          });
+        }
+
+        const roidKey = findKey(['roid', 'outletid', 'outletcode', 'rocode', 'code', 'id']);
+        const respKey = findKey(['responsibility', 'resp', 'responsible']);
+        const remarkKey = findKey(['complaintremark', 'remarks', 'remark', 'complaint', 'issue', 'reason']);
+        const bromaKey = findKey(['bromano', 'broma', 'ticket', 'complaintno']);
+        const dateKey = findKey(['date', 'entrydate', 'complaintdate']);
+        const targetDateKey = findKey(['targetdate', 'targetdt', 'target']);
+
+        if (!roidKey) {
+          if (window.showToast) window.showToast('Could not find RO ID column in the imported file.', 'error');
+          return;
+        }
+
+        let updatedCount = 0;
+        const batchRows = [];
+        const allROs = window.calculatedROs || [];
+
+        rows.forEach(r => {
+          const rawRoid = r[roidKey];
+          if (!rawRoid) return;
+          const roid = String(rawRoid).replace(/[^0-9]/g, '');
+          if (!roid) return;
+
+          const currentStored = getStoredOutletData(roid);
+          const newResp = (respKey && r[respKey] !== undefined && String(r[respKey]).trim() !== '') ? String(r[respKey]).trim() : currentStored.responsibility;
+          const newRemark = (remarkKey && r[remarkKey] !== undefined && String(r[remarkKey]).trim() !== '') ? String(r[remarkKey]).trim() : currentStored.remark;
+          const newBroma = (bromaKey && r[bromaKey] !== undefined && String(r[bromaKey]).trim() !== '') ? String(r[bromaKey]).trim() : currentStored.broma_no;
+          const newDate = (dateKey && r[dateKey] !== undefined && String(r[dateKey]).trim() !== '') ? normalizeDateStr(r[dateKey]) : currentStored.date;
+          const newTargetDate = (targetDateKey && r[targetDateKey] !== undefined && String(r[targetDateKey]).trim() !== '') ? normalizeDateStr(r[targetDateKey]) : currentStored.target_date;
+
+          const updated = {
+            responsibility: newResp,
+            remark: newRemark,
+            broma_no: newBroma,
+            date: newDate,
+            target_date: newTargetDate
+          };
+
+          // Save locally
+          localStorage.setItem('outlets_status_' + roid, JSON.stringify(updated));
+
+          // Sync to day_remarks_
+          const dayRaw = localStorage.getItem('day_remarks_' + roid);
+          let dayData = {};
+          if (dayRaw) {
+            try { dayData = JSON.parse(dayRaw); } catch(err) {}
+          }
+          dayData.responsibility = newResp;
+          dayData.remark = newRemark;
+          dayData.targetDate = newTargetDate;
+          dayData.broma_no = newBroma;
+          dayData.date = newDate;
+          localStorage.setItem('day_remarks_' + roid, JSON.stringify(dayData));
+
+          // Prepare shared cloud row
+          const roObj = allROs.find(ro => String(ro.roid) === roid) || { roid: roid };
+          const cloudRow = {
+            date: newDate || (typeof getDayMonitoringDate === 'function' ? getDayMonitoringDate() : getTodayDateStr()),
+            roid: roid,
+            outletName: roObj.outlet_name || '',
+            salesArea: roObj.sales_area || '',
+            vendor: roObj.vendor || '',
+            status: roObj.status || '',
+            iot: roObj.iot_status || '',
+            uptime: Number(roObj.uptime || 0),
+            offlineMpd: Number(roObj.off_mpd || 0),
+            offlineTank: Number(roObj.off_tnk || 0),
+            responsibility: newResp,
+            remark: newRemark,
+            targetDate: newTargetDate,
+            bromaNo: newBroma,
+            updatedBy: (typeof getCurrentDashboardUserName === 'function') ? getCurrentDashboardUserName() : 'Excel Import',
+            updatedAt: new Date().toISOString(),
+            territory: 'Belgaum'
+          };
+
+          if (typeof setSharedDayData === 'function') {
+            setSharedDayData(roid, cloudRow);
+          } else if (window.dayMonitoringShared) {
+            window.dayMonitoringShared[roid] = cloudRow;
+          }
+
+          batchRows.push(cloudRow);
+          updatedCount++;
+        });
+
+        // Re-render table immediately
+        renderOutletsStatusTable();
+        if (typeof renderDayMonitoringTable === 'function') {
+          renderDayMonitoringTable();
+        }
+
+        // Push batch to Google Apps Script cloud backend in background
+        if (batchRows.length > 0 && typeof dayMonitoringApiRequest === 'function') {
+          try {
+            const apiResult = await dayMonitoringApiRequest('POST', {
+              action: 'saveRows',
+              rows: batchRows
+            });
+            if (apiResult && apiResult.success) {
+              const statusEl = document.getElementById('outlets-status-cloud-status');
+              if (statusEl) {
+                statusEl.textContent = `Shared Live Sync: Synced ${updatedCount} outlets at ${new Date().toLocaleTimeString()}.`;
+              }
+            }
+          } catch (cloudErr) {
+            console.warn('Batch cloud sync error:', cloudErr);
+          }
+        }
+
+        if (window.showToast) {
+          window.showToast(`Imported & updated ${updatedCount} outlets successfully!`, 'success');
+        }
+      } catch (err) {
+        console.error('Import error:', err);
+        if (window.showToast) window.showToast('Error processing file: ' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
   function setupOutletsStatusEventListeners() {
     const searchInput = document.getElementById('outlets-status-search-input');
     if (searchInput) {
@@ -389,6 +614,43 @@
     const exportBtn = document.getElementById('export-outlets-status-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', exportOutletsStatusCSV);
+    }
+
+    // Import file input listener
+    const importInput = document.getElementById('import-outlets-status-input');
+    if (importInput) {
+      importInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleOutletsStatusImportFile(e.target.files[0]);
+          e.target.value = ''; // Reset input so same file can be re-selected if modified
+        }
+      });
+    }
+
+    // Cloud sync button
+    const syncBtn = document.getElementById('sync-outlets-status-btn');
+    if (syncBtn) {
+      syncBtn.addEventListener('click', async () => {
+        syncBtn.disabled = true;
+        syncBtn.style.opacity = '0.6';
+        if (window.showToast) window.showToast('Syncing latest cloud data...', 'info');
+        try {
+          if (typeof window.loadSharedDayMonitoring === 'function') {
+            await window.loadSharedDayMonitoring(false);
+          }
+          renderOutletsStatusTable();
+          const statusEl = document.getElementById('outlets-status-cloud-status');
+          if (statusEl) {
+            statusEl.textContent = `Shared Live Sync: Refreshed at ${new Date().toLocaleTimeString()}.`;
+          }
+          if (window.showToast) window.showToast('Synced latest remarks and BROMA details!', 'success');
+        } catch (err) {
+          console.warn('Sync failed:', err);
+        } finally {
+          syncBtn.disabled = false;
+          syncBtn.style.opacity = '1';
+        }
+      });
     }
 
     // Sort clicks on headers
@@ -415,6 +677,7 @@
   window.renderOutletsStatusTable = renderOutletsStatusTable;
   window.populateOutletsStatusFilters = populateOutletsStatusFilters;
   window.exportOutletsStatusCSV = exportOutletsStatusCSV;
+  window.handleOutletsStatusImportFile = handleOutletsStatusImportFile;
   window.setupOutletsStatusEventListeners = setupOutletsStatusEventListeners;
 
   // Auto initialize on DOM ready
