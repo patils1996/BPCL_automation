@@ -281,6 +281,13 @@ function setupEventListeners() {
     roCurrentPage = 1;
     filterROExplorer();
   });
+  const roNlFilter = document.getElementById('ro-filter-new-logic');
+  if (roNlFilter) {
+    roNlFilter.addEventListener('change', () => {
+      roCurrentPage = 1;
+      filterROExplorer();
+    });
+  }
   document.getElementById('ro-filter-status').addEventListener('change', () => {
     roCurrentPage = 1;
     filterROExplorer();
@@ -779,6 +786,13 @@ function parseAutomationData(rows, headerRowIdx, headers) {
       }
     }
     
+    if (!roOnlineVal && row.length > 23 && row[23] !== undefined && row[23] !== null) {
+      const candidate23 = String(row[23]).trim();
+      if (candidate23.toLowerCase().includes('on') || candidate23.toLowerCase().includes('part') || candidate23.toLowerCase().includes('off')) {
+        roOnlineVal = candidate23;
+      }
+    }
+
     const parsePctVal = col => {
       if (col === -1 || row[col] === undefined || row[col] === null || String(row[col]).trim() === '') return null;
       let s = String(row[col]).trim().replace(/,/g, '').replace('%', '');
@@ -906,6 +920,36 @@ function processCalculations(rows) {
     
     const iot_status = (row.iot_enabled && (row.iot_enabled.toLowerCase() === 'yes' || row.iot_enabled === 'Yes')) ? 'IOT' : 'WFCC';
     
+    // Determine New Logic Status
+    let new_logic_status = "Offline";
+    const rawNl = String(row.ro_online_status || '').trim();
+    if (rawNl) {
+      const lowerNl = rawNl.toLowerCase();
+      if (lowerNl === 'fully online' || lowerNl === 'online') {
+        new_logic_status = 'Fully Online';
+      } else if (lowerNl === 'partially online' || lowerNl === 'partial' || lowerNl.includes('part')) {
+        new_logic_status = 'Partially Online';
+      } else if (lowerNl === 'offline' || lowerNl.includes('off')) {
+        new_logic_status = 'Offline';
+      } else {
+        new_logic_status = rawNl;
+      }
+    } else {
+      const mo = Number(row.onb_mpd), mp = Number(row.onl_mpd);
+      const ao = Number(row.onb_tnk), ap = Number(row.onl_tnk);
+      if ([mo, mp, ao, ap].some(v => !isNaN(v) && v > 0)) {
+        if ((isNaN(mp) || mp === 0) && (isNaN(ap) || ap === 0)) {
+          new_logic_status = 'Offline';
+        } else if ((!isNaN(mo) && !isNaN(mp) && mp < mo) || (!isNaN(ao) && !isNaN(ap) && ap < ao)) {
+          new_logic_status = 'Partially Online';
+        } else {
+          new_logic_status = 'Fully Online';
+        }
+      } else {
+        new_logic_status = status;
+      }
+    }
+
     calculatedROs.push({
       roid: row.roid,
       outlet_name: outlet_name,
@@ -925,6 +969,7 @@ function processCalculations(rows) {
       uptime: uptime,
       status: status,
       ro_online_status: row.ro_online_status || status,
+      new_logic_status: new_logic_status,
       condition: condition,
       nano_status: nano_status,
       off_mpd: off_mpd,
@@ -1671,6 +1716,8 @@ function filterROExplorer() {
   const nanoFilter = document.getElementById('ro-filter-nano').value;
   const areaFilter = document.getElementById('ro-filter-area').value;
   const techFilter = document.getElementById('ro-filter-technology').value;
+  const nlFilterEl = document.getElementById('ro-filter-new-logic');
+  const nlFilter = nlFilterEl ? nlFilterEl.value : "";
   
   roFilteredList = calculatedROs.filter(ro => {
     // Search match
@@ -1682,11 +1729,12 @@ function filterROExplorer() {
       ro.mst_name.toLowerCase().includes(searchQuery);
       
     const statusMatch = statusFilter === "" || ro.status === statusFilter;
+    const nlMatch = nlFilter === "" || (ro.new_logic_status || ro.ro_online_status || ro.status) === nlFilter;
     const nanoMatch = nanoFilter === "" || ro.nano_status === nanoFilter;
     const areaMatch = areaFilter === "" || ro.sales_area === areaFilter;
     const techMatch = techFilter === "" || ro.iot_status === techFilter;
     
-    return searchMatch && statusMatch && nanoMatch && areaMatch && techMatch;
+    return searchMatch && statusMatch && nlMatch && nanoMatch && areaMatch && techMatch;
   });
   
   sortROs();
@@ -1722,7 +1770,7 @@ function renderROExplorerPage() {
   const pageData = roFilteredList.slice(startIdx, endIdx);
   
   if (total === 0) {
-    tbody.innerHTML = `<tr><td colspan="18" style="text-align: center; padding: 2rem;">No matching outlets found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="19" style="text-align: center; padding: 2rem;">No matching outlets found.</td></tr>`;
     document.getElementById('ro-pagination-info').textContent = "Showing 0 to 0 of 0 entries";
     renderPaginationButtons('ro-pagination-btns', 0, 1, 1, (page) => {});
     return;
@@ -1734,6 +1782,11 @@ function renderROExplorerPage() {
     let statusClass = "badge-offline";
     if (ro.status === "Fully Online") statusClass = "badge-online";
     else if (ro.status === "Partially Online") statusClass = "badge-partial";
+    
+    const nlStatus = ro.new_logic_status || ro.ro_online_status || ro.status;
+    let nlClass = "badge-offline";
+    if (nlStatus === "Fully Online") nlClass = "badge-online";
+    else if (nlStatus === "Partially Online" || nlStatus === "Partial") nlClass = "badge-partial";
     
     tr.innerHTML = `
       <td>${ro.roid}</td>
@@ -1751,6 +1804,7 @@ function renderROExplorerPage() {
       <td>${ro.tot_onl.toFixed(1)}</td>
       <td style="font-weight: 500;">${(ro.uptime * 100).toFixed(1)}%</td>
       <td><span class="badge ${statusClass}">${ro.status}</span></td>
+      <td><span class="badge ${nlClass}">${nlStatus}</span></td>
       <td>${ro.off_mpd.toFixed(0)}</td>
       <td>${ro.off_tnk.toFixed(0)}</td>
       <td title="${ro.condition}">${ro.nano_status}</td>
@@ -1968,7 +2022,7 @@ function exportToCSV(dataList, filename, isSalesArea = false, isRODetails = fals
   if (isSalesArea) {
     headers = ["Sales Area", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   } else if (isRODetails) {
-    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Status", "Offline MPD", "Offline Tank", "NANO Status"];
+    headers = ["ROID", "Retail Outlet", "Sales Area", "TE Name", "RA Vendor", "MST Name", "Auto RSP", "Onbd MPD", "Online MPD", "Onbd Tank", "Online Tank", "Total Onbd", "Total Online", "Uptime %", "Status", "New Logic Status", "Offline MPD", "Offline Tank", "NANO Status"];
   } else {
     headers = ["Name", "Total ROs", "Fully Online", "Partially Online", "Offline", "Onbd MPD", "Online MPD", "MPD Uptime %", "Onbd Tank", "Online Tank", "Tank Uptime %", "AVG Uptime %", "Offline MPDs", "Offline Tanks"];
   }
@@ -1994,6 +2048,7 @@ function exportToCSV(dataList, filename, isSalesArea = false, isRODetails = fals
         row.tot_onl,
         (row.uptime * 100).toFixed(2) + "%",
         row.status,
+        row.new_logic_status || row.ro_online_status || row.status,
         row.off_mpd,
         row.off_tnk,
         row.nano_status
