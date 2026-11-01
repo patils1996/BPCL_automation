@@ -182,7 +182,7 @@
     if (countBadge) {
       const offCount = filtered.filter(r => get2SlotStatus(r).toLowerCase().includes('off')).length;
       const partCount = filtered.filter(r => get2SlotStatus(r).toLowerCase().includes('part')).length;
-      countBadge.textContent = `${filtered.length} Outlets (${offCount} Offline · ${partCount} Partial)`;
+      countBadge.innerHTML = `<span>${filtered.length} Outlets</span> <span style="opacity: 0.4;">|</span> <span style="color: #fca5a5;">${offCount} Offline</span> <span style="opacity: 0.4;">·</span> <span style="color: #fcd34d;">${partCount} Partial</span>`;
     }
 
     if (filtered.length === 0) {
@@ -195,9 +195,6 @@
     filtered.forEach(ro => {
       const tr = document.createElement('tr');
       const nlStatus = get2SlotStatus(ro);
-      let nlBadgeClass = 'badge-offline';
-      if (nlStatus.toLowerCase().includes('part')) nlBadgeClass = 'badge-partial';
-      else if (nlStatus.toLowerCase().includes('fully') || nlStatus.toLowerCase() === 'online') nlBadgeClass = 'badge-online';
 
       const stored = getStoredOutletData(ro.roid);
 
@@ -232,15 +229,15 @@
       tdMST.textContent = ro.mst_name || '';
       tr.appendChild(tdMST);
 
-      // IOT/WFCC
+      // IOT/WFCC - Normal format
       const tdTech = document.createElement('td');
-      const isIOT = (ro.iot_status === 'IOT');
-      tdTech.innerHTML = `<span class="badge" style="background:${isIOT ? 'rgba(16,185,129,0.15)' : 'rgba(99,102,241,0.15)'}; color:${isIOT ? '#059669' : '#4f46e5'}; border:1px solid ${isIOT ? 'rgba(16,185,129,0.3)' : 'rgba(99,102,241,0.3)'}; font-weight:700;">${ro.iot_status}</span>`;
+      tdTech.textContent = ro.iot_status || '';
       tr.appendChild(tdTech);
 
-      // 2 slot status
+      // 2 slot status - Normal format
       const tdStatus = document.createElement('td');
-      tdStatus.innerHTML = `<span class="badge ${nlBadgeClass}">${nlStatus}</span>`;
+      const isOff = nlStatus.toLowerCase().includes('off');
+      tdStatus.innerHTML = `<span style="font-weight: 600; color: ${isOff ? '#dc2626' : '#d97706'};">${nlStatus}</span>`;
       tr.appendChild(tdStatus);
 
       // Responsibility
