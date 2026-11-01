@@ -515,6 +515,14 @@ function recalculateAndRefresh() {
     }
     
     // Notify New Logic Dashboard
+    // Notify Outlets Status (2 Slot Partial & Offline Sites)
+    if (typeof window.populateOutletsStatusFilters === 'function') {
+      window.populateOutletsStatusFilters();
+    }
+    if (typeof window.renderOutletsStatusTable === 'function') {
+      window.renderOutletsStatusTable();
+    }
+
     if (typeof window.renderNewLogicDashboard === 'function') {
       window.renderNewLogicDashboard();
     }

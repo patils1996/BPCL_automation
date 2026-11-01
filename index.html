@@ -54,6 +54,11 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
         New Logic Dashboard
       </div>
+      <div class="menu-item" title="Outlets status" id="sidebar-outlets-status-btn" onclick="switchSidebarTab('tab-outlets-status')">
+        <!-- Alert Circle SVG icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        Outlets status
+      </div>
       <div class="menu-item" title="Performance Trend" id="sidebar-performance-trend-btn" onclick="switchSidebarTab('tab-performance-trend')">
         <!-- Line Chart SVG icon -->
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"></path></svg>
@@ -938,6 +943,81 @@
           </div>
         </div>
 
+        <!-- TAB: OUTLETS STATUS (2 SLOT PARTIAL & OFFLINE) -->
+        <div class="tab-panel" id="tab-outlets-status">
+          <div class="table-card">
+            <div class="table-card-header">
+              <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                <h3>Outlets Status (2 Slot Partial &amp; Offline Sites)</h3>
+                <span class="user-badge" id="outlets-status-count-badge" style="font-size: 0.75rem; font-weight: 700; background: var(--bg-primary); border: 1px solid var(--border); padding: 0.25rem 0.6rem; border-radius: 6px;">0 Outlets</span>
+              </div>
+              <div class="search-filter-controls">
+                <input type="text" class="search-input" id="outlets-status-search-input" placeholder="Search by ROID, Name, EO, MST, BROMA...">
+                
+                <select class="filter-select" id="outlets-status-filter-status">
+                  <option value="">All 2 Slot Statuses</option>
+                  <option value="Partially Online">Partially Online</option>
+                  <option value="Offline">Offline</option>
+                </select>
+
+                <select class="filter-select" id="outlets-status-filter-area">
+                  <option value="">All Sales Areas</option>
+                  <!-- Filled dynamically -->
+                </select>
+
+                <select class="filter-select" id="outlets-status-filter-vendor">
+                  <option value="">All Vendors</option>
+                  <!-- Filled dynamically -->
+                </select>
+
+                <select class="filter-select" id="outlets-status-filter-tech">
+                  <option value="">All Technologies</option>
+                  <option value="IOT">IOT</option>
+                  <option value="WFCC">WFCC</option>
+                </select>
+
+                <select class="filter-select" id="outlets-status-filter-resp">
+                  <option value="">All Responsibilities</option>
+                  <option value="DEALER">DEALER</option>
+                  <option value="BPCL">BPCL</option>
+                  <option value="RA VENDOR">RA VENDOR</option>
+                  <option value="VENDOR">VENDOR</option>
+                </select>
+
+                <button class="btn-primary" id="export-outlets-status-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            <div class="table-responsive-container">
+              <table class="data-table" id="outlets-status-table">
+                <thead>
+                  <tr>
+                    <th data-sort="roid">RO ID</th>
+                    <th data-sort="outlet_name">RO Name</th>
+                    <th data-sort="sales_area">Sales Area</th>
+                    <th data-sort="vendor">Vendor</th>
+                    <th data-sort="eo_name">EO</th>
+                    <th data-sort="mst_name">MST</th>
+                    <th data-sort="iot_status">IOT/WFCC</th>
+                    <th data-sort="new_logic_status">2 Slot Status</th>
+                    <th data-sort="responsibility">Responsibility</th>
+                    <th>Complaint Remarks</th>
+                    <th>BROMA No</th>
+                    <th>Date</th>
+                    <th>Target Date</th>
+                  </tr>
+                </thead>
+                <tbody id="outlets-status-tbody">
+                  <!-- Inserted Dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB 2: SALES AREAS -->
         <div class="tab-panel" id="tab-sales-area">
           <div class="table-card">
@@ -1478,6 +1558,7 @@
         if (targetTabId === 'tab-monitoring' && title === 'monitoring') return true;
         if (targetTabId === 'tab-comparison' && title === 'comparison') return true;
         if (targetTabId === 'tab-new-logic' && title === 'new logic dashboard') return true;
+        if (targetTabId === 'tab-outlets-status' && title === 'outlets status') return true;
         if (targetTabId === 'tab-performance-trend' && title === 'performance trend') return true;
         if (targetTabId === 'tab-sales-area' && title === 'sales areas') return true;
         if (targetTabId === 'tab-vendor-summary' && title === 'vendor summary') return true;
@@ -1509,6 +1590,11 @@
         if (window.renderNewLogicDashboard) {
           window.renderNewLogicDashboard();
         }
+      }
+      
+      if (targetTabId === 'tab-outlets-status') {
+        if (window.populateOutletsStatusFilters) window.populateOutletsStatusFilters();
+        if (window.renderOutletsStatusTable) window.renderOutletsStatusTable();
       }
       
       if (targetTabId === 'tab-performance-trend' && window.loadUploadHistory) {
@@ -1593,5 +1679,6 @@
   <script src="trend.js"></script>
   <script src="comparison.js"></script>
   <script src="new_logic_dashboard.js"></script>
+  <script src="outlets_status.js"></script>
 </body>
 </html>

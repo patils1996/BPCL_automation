@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bpcl-dashboard-v19';
+const CACHE_NAME = 'bpcl-dashboard-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
   './trend.js',
   './comparison.js',
   './new_logic_dashboard.js',
+  './outlets_status.js',
   './automation_mis_dashboard.html',
   './day_monitoring_config.js',
   './sample_data.js',
