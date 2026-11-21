@@ -33,13 +33,13 @@ let salesAreaBarChartInstance = null;
 // Pagination and Sorting states
 const RO_PAGE_SIZE = 15;
 let roCurrentPage = 1;
-let roSortField = 'roid';
+let roSortField = 'sales_area';
 let roSortAsc = true;
 let roFilteredList = [];
 
 const MAP_PAGE_SIZE = 15;
 let mapCurrentPage = 1;
-let mapSortField = 'roid';
+let mapSortField = 'sales_area';
 let mapSortAsc = true;
 let mapFilteredList = [];
 
@@ -454,6 +454,13 @@ function setupTableSort() {
       renderROExplorerPage();
     });
   });
+
+  // Set initial sort indicator on default sort column
+  const initialRoTh = document.querySelector(`#ro-explorer-table th[data-sort="${roSortField}"]`);
+  if (initialRoTh) {
+    roHeaders.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+    initialRoTh.classList.add(roSortAsc ? 'sort-asc' : 'sort-desc');
+  }
 
   // Mappings Table headers
   const mapHeaders = document.querySelectorAll('#mapping-table th[data-mapsort]');
@@ -999,6 +1006,18 @@ function processCalculations(rows) {
     calculatedROs.length = 0;
     filtered.forEach(item => calculatedROs.push(item));
   }
+  
+  // Default sort all calculated data sales-area wise (Sales Area ascending, then RO code)
+  calculatedROs.sort((a, b) => {
+    let areaA = String(a.sales_area || '').trim();
+    let areaB = String(b.sales_area || '').trim();
+    let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+    if (c !== 0) return c;
+    let idA = parseInt(a.roid, 10);
+    let idB = parseInt(b.roid, 10);
+    if (!isNaN(idA) && !isNaN(idB)) return idA - idB;
+    return String(a.roid || '').localeCompare(String(b.roid || ''));
+  });
   
   // RO code → territory / sales area from the uptime sheet (before the territory
   // scope is applied) — other menus such as Tank Stock use it so every menu
@@ -1867,9 +1886,32 @@ function sortROs() {
     if (typeof valA === 'string' && !isNaN(valA) && valA !== "") valA = parseFloat(valA);
     if (typeof valB === 'string' && !isNaN(valB) && valB !== "") valB = parseFloat(valB);
     
-    if (valA < valB) return asc ? -1 : 1;
-    if (valA > valB) return asc ? 1 : -1;
-    return 0;
+    let isNum = typeof valA === 'number' && typeof valB === 'number';
+    let res = 0;
+    if (isNum) {
+      if (valA < valB) res = asc ? -1 : 1;
+      else if (valA > valB) res = asc ? 1 : -1;
+    } else {
+      let strA = String(valA || '').trim();
+      let strB = String(valB || '').trim();
+      let cmp = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
+      if (cmp !== 0) res = asc ? cmp : -cmp;
+    }
+    if (res !== 0) return res;
+
+    // Secondary tie-breaker: sort by sales_area if not the primary sort key
+    if (key !== 'sales_area') {
+      let areaA = String(a.sales_area || '').trim();
+      let areaB = String(b.sales_area || '').trim();
+      let areaCmp = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+      if (areaCmp !== 0) return areaCmp;
+    }
+
+    // Tertiary tie-breaker: ROID
+    let roidA = parseInt(a.roid, 10);
+    let roidB = parseInt(b.roid, 10);
+    if (!isNaN(roidA) && !isNaN(roidB)) return roidA - roidB;
+    return String(a.roid || '').localeCompare(String(b.roid || ''));
   });
 }
 
@@ -1999,6 +2041,7 @@ function filterMappings() {
       list.push({
         roid: roid,
         outlet_name: info.outlet_name,
+        sales_area: info.sales_area || info.sales_group || '',
         eo_name: info.eo_name,
         sales_group: info.sales_group,
         so_name: info.so_name,
@@ -2018,17 +2061,23 @@ function sortMappings() {
   const asc = mapSortAsc;
   
   mapFilteredList.sort((a, b) => {
-    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : a[key];
-    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : b[key];
+    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : (a[key] ?? a.sales_group ?? '');
+    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : (b[key] ?? b.sales_group ?? '');
     
     if (key === 'roid') {
-      valA = parseInt(valA);
-      valB = parseInt(valB);
+      valA = parseInt(valA, 10);
+      valB = parseInt(valB, 10);
     }
     
     if (valA < valB) return asc ? -1 : 1;
     if (valA > valB) return asc ? 1 : -1;
-    return 0;
+    
+    // Tie-breaker: sales_area / sales_group then roid
+    let groupA = String(a.sales_area || a.sales_group || '').trim();
+    let groupB = String(b.sales_area || b.sales_group || '').trim();
+    let c = groupA.localeCompare(groupB);
+    if (c !== 0) return c;
+    return String(a.roid || '').localeCompare(String(b.roid || ''));
   });
 }
 
@@ -3969,6 +4018,18 @@ window.renderMonitoringComparison = async function() {
     if (pEl) pEl.style.display = 'none';
     return;
   }
+  
+  // Sort compareList sales area wise, then RO code
+  compareList.sort((a, b) => {
+    let areaA = String(a.sales_area || '').trim();
+    let areaB = String(b.sales_area || '').trim();
+    let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+    if (c !== 0) return c;
+    let idA = parseInt(a.roid, 10);
+    let idB = parseInt(b.roid, 10);
+    if (!isNaN(idA) && !isNaN(idB)) return idA - idB;
+    return String(a.roid || '').localeCompare(String(b.roid || ''));
+  });
   
   // Pagination for Monitoring Comparison to prevent mobile browser crash
   const MON_PAGE_SIZE = 40;

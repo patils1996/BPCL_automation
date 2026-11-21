@@ -394,7 +394,17 @@
         x.online++;
       }
     });
-    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
+    return [...m.values()].sort((a, b) => {
+      let areaA = String(a.area || '').trim();
+      let areaB = String(b.area || '').trim();
+      let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+      if (c !== 0) return c;
+      let nameA = String(a.name || '').trim();
+      let nameB = String(b.name || '').trim();
+      let nc = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      if (nc !== 0) return nc;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
   }
 
   function fillTerritoryFilter() {
@@ -548,6 +558,19 @@
     if (filterLowStockOnly) {
       rows = rows.filter(isLowStockSite);
     }
+
+    // Sort rows sales-area wise (Sales Area ascending, then outlet name/id)
+    rows.sort((a, b) => {
+      let areaA = String(a.area || '').trim();
+      let areaB = String(b.area || '').trim();
+      let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+      if (c !== 0) return c;
+      let nameA = String(a.name || '').trim();
+      let nameB = String(b.name || '').trim();
+      let nc = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
+      if (nc !== 0) return nc;
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
 
     // Dynamically update KPIs matching current filter selection
     updateKPIs(rows);

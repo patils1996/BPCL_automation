@@ -494,7 +494,7 @@
     const mapping = window.activeMappings || {};
     const ros = (window.calculatedROs && window.calculatedROs.length) ? window.calculatedROs.map(r => [r.roid, r.outlet_name, r.sales_area, r.vendor]) : Object.entries(mapping).map(([k, v]) => [k, v.outlet_name, '', '']);
     const aoa = [['CC Code', 'RO Name', 'Sales Area', 'Vendor', 'Dealer Name', 'WhatsApp Number']];
-    ros.sort((a, b) => String(a[0]).localeCompare(String(b[0]))).forEach(r => {
+    ros.sort((a, b) => String(a[2] || '').localeCompare(String(b[2] || '')) || String(a[0]).localeCompare(String(b[0]))).forEach(r => {
       const c = Contacts.local[String(r[0])];
       aoa.push([...r, c ? c.dealerName : '', c ? c.phone : '']);
     });

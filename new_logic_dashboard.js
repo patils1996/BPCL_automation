@@ -169,6 +169,15 @@
     }
     const picks = MIS_FILTERS.map(cfg => ({ cfg, vals: $(cfg.id) && window.MS ? MS.vals($(cfg.id)) : [] }));
     const rows = inScope.filter(r => picks.every(p => !p.vals.length || p.vals.includes(String(p.cfg.get(r)))));
+    rows.sort((a, b) => {
+      let areaA = String(getCol(a, 'area') || '').trim();
+      let areaB = String(getCol(b, 'area') || '').trim();
+      let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
+      if (c !== 0) return c;
+      let idA = String(getCol(a, 'id') || '').trim();
+      let idB = String(getCol(b, 'id') || '').trim();
+      return idA.localeCompare(idB);
+    });
     const active = picks.reduce((n, p) => n + p.vals.length, 0) + (window.GlobalScope ? GlobalScope.get().length : 0);
     const cnt = $('mis-filter-count');
     if (cnt) { cnt.hidden = !active; cnt.textContent = active ? active + ' active' : ''; }
