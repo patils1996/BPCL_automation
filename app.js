@@ -18,6 +18,18 @@ var defaultMappings = window.defaultMappings;
 var customMappings = window.customMappings;
 var activeMappings = window.activeMappings;
 var rawDataRows = window.rawDataRows;
+
+// Default outlet order everywhere: Sales Area (A–Z, Unmapped last), then RO code
+function compareBySalesArea(a, b) {
+  const aa = String((a && a.sales_area) || '').trim(), ba = String((b && b.sales_area) || '').trim();
+  const ua = !aa || aa === 'Unmapped', ub = !ba || ba === 'Unmapped';
+  if (ua !== ub) return ua ? 1 : -1;
+  const c = aa.localeCompare(ba, 'en', { sensitivity: 'base' });
+  if (c) return c;
+  const ra = parseInt(String(a.roid || '').replace(/\D/g, ''), 10) || 0, rb = parseInt(String(b.roid || '').replace(/\D/g, ''), 10) || 0;
+  return ra - rb;
+}
+window.compareBySalesArea = compareBySalesArea;
 var calculatedROs = window.calculatedROs;
 var salesAreaSummary = window.salesAreaSummary;
 var eoSummary = window.eoSummary;
@@ -33,13 +45,13 @@ let salesAreaBarChartInstance = null;
 // Pagination and Sorting states
 const RO_PAGE_SIZE = 15;
 let roCurrentPage = 1;
-let roSortField = 'sales_area';
+let roSortField = 'sales_area'; // default: grouped by sales area, then RO code
 let roSortAsc = true;
 let roFilteredList = [];
 
 const MAP_PAGE_SIZE = 15;
 let mapCurrentPage = 1;
-let mapSortField = 'sales_area';
+let mapSortField = 'roid';
 let mapSortAsc = true;
 let mapFilteredList = [];
 
@@ -455,13 +467,6 @@ function setupTableSort() {
     });
   });
 
-  // Set initial sort indicator on default sort column
-  const initialRoTh = document.querySelector(`#ro-explorer-table th[data-sort="${roSortField}"]`);
-  if (initialRoTh) {
-    roHeaders.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
-    initialRoTh.classList.add(roSortAsc ? 'sort-asc' : 'sort-desc');
-  }
-
   // Mappings Table headers
   const mapHeaders = document.querySelectorAll('#mapping-table th[data-mapsort]');
   mapHeaders.forEach(th => {
@@ -543,6 +548,7 @@ function recalculateAndRefresh() {
     if (typeof window.renderTerritoryPerformance === 'function') {
       window.renderTerritoryPerformance();
     }
+    if (window.DataFreshness) window.DataFreshness.render();
   }
 }
 
@@ -578,6 +584,7 @@ window.handleUploadedFile = function(file) {
       parseRawData(parsedData);
       
       // Recalculate
+      if (window.DataFreshness) DataFreshness.fromUpload(file.lastModified || Date.now(), file.name);
       recalculateAndRefresh();
       
       // Switch view from upload landing to active dashboard
@@ -990,6 +997,9 @@ function processCalculations(rows) {
     });
   });
   
+  // Present outlets grouped by sales area (then RO code) on every menu
+  calculatedROs.sort(compareBySalesArea);
+
   // Filter based on logged in user scope
   if (window.currentUser) {
     const { role, username } = window.currentUser;
@@ -1006,18 +1016,6 @@ function processCalculations(rows) {
     calculatedROs.length = 0;
     filtered.forEach(item => calculatedROs.push(item));
   }
-  
-  // Default sort all calculated data sales-area wise (Sales Area ascending, then RO code)
-  calculatedROs.sort((a, b) => {
-    let areaA = String(a.sales_area || '').trim();
-    let areaB = String(b.sales_area || '').trim();
-    let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-    if (c !== 0) return c;
-    let idA = parseInt(a.roid, 10);
-    let idB = parseInt(b.roid, 10);
-    if (!isNaN(idA) && !isNaN(idB)) return idA - idB;
-    return String(a.roid || '').localeCompare(String(b.roid || ''));
-  });
   
   // RO code → territory / sales area from the uptime sheet (before the territory
   // scope is applied) — other menus such as Tank Stock use it so every menu
@@ -1883,35 +1881,13 @@ function sortROs() {
     let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : b[key];
     
     // Numeric conversions
+    if (key === 'sales_area') { const c = compareBySalesArea(a, b); return asc ? c : -c; }
     if (typeof valA === 'string' && !isNaN(valA) && valA !== "") valA = parseFloat(valA);
     if (typeof valB === 'string' && !isNaN(valB) && valB !== "") valB = parseFloat(valB);
     
-    let isNum = typeof valA === 'number' && typeof valB === 'number';
-    let res = 0;
-    if (isNum) {
-      if (valA < valB) res = asc ? -1 : 1;
-      else if (valA > valB) res = asc ? 1 : -1;
-    } else {
-      let strA = String(valA || '').trim();
-      let strB = String(valB || '').trim();
-      let cmp = strA.localeCompare(strB, undefined, { numeric: true, sensitivity: 'base' });
-      if (cmp !== 0) res = asc ? cmp : -cmp;
-    }
-    if (res !== 0) return res;
-
-    // Secondary tie-breaker: sort by sales_area if not the primary sort key
-    if (key !== 'sales_area') {
-      let areaA = String(a.sales_area || '').trim();
-      let areaB = String(b.sales_area || '').trim();
-      let areaCmp = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-      if (areaCmp !== 0) return areaCmp;
-    }
-
-    // Tertiary tie-breaker: ROID
-    let roidA = parseInt(a.roid, 10);
-    let roidB = parseInt(b.roid, 10);
-    if (!isNaN(roidA) && !isNaN(roidB)) return roidA - roidB;
-    return String(a.roid || '').localeCompare(String(b.roid || ''));
+    if (valA < valB) return asc ? -1 : 1;
+    if (valA > valB) return asc ? 1 : -1;
+    return compareBySalesArea(a, b);
   });
 }
 
@@ -2041,7 +2017,6 @@ function filterMappings() {
       list.push({
         roid: roid,
         outlet_name: info.outlet_name,
-        sales_area: info.sales_area || info.sales_group || '',
         eo_name: info.eo_name,
         sales_group: info.sales_group,
         so_name: info.so_name,
@@ -2061,23 +2036,17 @@ function sortMappings() {
   const asc = mapSortAsc;
   
   mapFilteredList.sort((a, b) => {
-    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : (a[key] ?? a.sales_group ?? '');
-    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : (b[key] ?? b.sales_group ?? '');
+    let valA = key === 'new_logic_status' ? (a.new_logic_status || a.ro_online_status || a.status || '') : a[key];
+    let valB = key === 'new_logic_status' ? (b.new_logic_status || b.ro_online_status || b.status || '') : b[key];
     
     if (key === 'roid') {
-      valA = parseInt(valA, 10);
-      valB = parseInt(valB, 10);
+      valA = parseInt(valA);
+      valB = parseInt(valB);
     }
     
     if (valA < valB) return asc ? -1 : 1;
     if (valA > valB) return asc ? 1 : -1;
-    
-    // Tie-breaker: sales_area / sales_group then roid
-    let groupA = String(a.sales_area || a.sales_group || '').trim();
-    let groupB = String(b.sales_area || b.sales_group || '').trim();
-    let c = groupA.localeCompare(groupB);
-    if (c !== 0) return c;
-    return String(a.roid || '').localeCompare(String(b.roid || ''));
+    return 0;
   });
 }
 
@@ -4019,17 +3988,8 @@ window.renderMonitoringComparison = async function() {
     return;
   }
   
-  // Sort compareList sales area wise, then RO code
-  compareList.sort((a, b) => {
-    let areaA = String(a.sales_area || '').trim();
-    let areaB = String(b.sales_area || '').trim();
-    let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-    if (c !== 0) return c;
-    let idA = parseInt(a.roid, 10);
-    let idB = parseInt(b.roid, 10);
-    if (!isNaN(idA) && !isNaN(idB)) return idA - idB;
-    return String(a.roid || '').localeCompare(String(b.roid || ''));
-  });
+  // Ensure comparison list is sorted sales area wise, then RO code
+  if (typeof compareBySalesArea === 'function') compareList.sort(compareBySalesArea);
   
   // Pagination for Monitoring Comparison to prevent mobile browser crash
   const MON_PAGE_SIZE = 40;
@@ -4296,6 +4256,7 @@ window.syncGoogleSheet = async function(silent = false, opts = {}) {
       const haveData = Array.isArray(window.rawDataRows) && window.rawDataRows.length > 0;
       if (!opts.force && fp === window.__sheetSync.fp && haveData) {
         window.__sheetSync.at = Date.now();
+        if (window.DataFreshness) DataFreshness.sheetChecked();
         if (window.TankStock) window.TankStock.markSynced(window.__sheetSync.at, window.__sheetSync.tankFound);
         if (!silent) showToast('Already up to date — no changes in the Google Sheet since the last sync.', 'success');
         return;
@@ -4323,6 +4284,7 @@ window.syncGoogleSheet = async function(silent = false, opts = {}) {
         throw new Error("Invalid sheet structure: the uptime sheet (Sheet 1 / 'Raw Data') has no data.");
       }
       parseRawData(parsedData);
+      if (window.DataFreshness) DataFreshness.fromWorkbook(book);
       recalculateAndRefresh();
       await window.loadSharedDayMonitoring(true);
 

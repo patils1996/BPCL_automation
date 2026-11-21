@@ -30,6 +30,7 @@ function classify(name) {
   var n = String(name || '').trim().toLowerCase();
   if (/^(te|eo)[-\s]?so\s*map/.test(n)) return 'mapping';
   if (n === 'historyarchive' || n === 'history archive') return 'history';
+  if (/^(last\s*updated|data\s*info|_?meta)$/.test(n)) return 'meta';
   if (/(last|latest|current)\s*(updated)?\s*stock/.test(n)) return 'tank_latest';
   if (/hourly/.test(n)) return 'tank_hourly';
   if (/onboard|tank\s*(map|master|list)/.test(n)) return 'tank_onboarded';

@@ -254,6 +254,7 @@ document.getElementById('btn-confirm-upload-save').addEventListener('click', asy
       
       // Construct timestamp
       const timestamp = new Date(`${dateInput}T${timeInput}:00`).getTime();
+      if (window.DataFreshness) DataFreshness.fromUpload(timestamp, file.name);
       
       // Save to IndexedDB
       const record = {

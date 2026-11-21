@@ -10,7 +10,7 @@
  */
 
 (function() {
-  let outletsStatusSortField = 'sales_area';
+  let outletsStatusSortField = 'sales_area'; // default: by sales area, then RO code
   let outletsStatusSortAsc = true;
   let outletsStatusFilteredList = [];
   const debounceTimers = {};
@@ -246,6 +246,8 @@
 
     // Sorting
     filtered.sort((a, b) => {
+      const byArea = window.compareBySalesArea ? window.compareBySalesArea(a, b) : 0;
+      if (outletsStatusSortField === 'sales_area') return outletsStatusSortAsc ? byArea : -byArea;
       let valA, valB;
       if (outletsStatusSortField === 'responsibility' || outletsStatusSortField === 'date' || outletsStatusSortField === 'target_date') {
         const storedA = getStoredOutletData(a.roid);
@@ -265,20 +267,7 @@
 
       if (valA < valB) return outletsStatusSortAsc ? -1 : 1;
       if (valA > valB) return outletsStatusSortAsc ? 1 : -1;
-
-      // Secondary tie-breaker: sort by sales_area if not the primary sort
-      if (outletsStatusSortField !== 'sales_area') {
-        let areaA = String(a.sales_area || '').trim();
-        let areaB = String(b.sales_area || '').trim();
-        let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-        if (c !== 0) return c;
-      }
-
-      // Tertiary tie-breaker: roid
-      let roidA = parseInt(a.roid, 10);
-      let roidB = parseInt(b.roid, 10);
-      if (!isNaN(roidA) && !isNaN(roidB)) return roidA - roidB;
-      return String(a.roid || '').localeCompare(String(b.roid || ''));
+      return byArea;
     });
 
     outletsStatusFilteredList = filtered;
@@ -893,13 +882,6 @@
         renderOutletsStatusTable();
       });
     });
-
-    // Set initial sort indicator on default sort column
-    const defaultTh = document.querySelector(`#outlets-status-table th[data-sort="${outletsStatusSortField}"]`);
-    if (defaultTh) {
-      headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
-      defaultTh.classList.add(outletsStatusSortAsc ? 'sort-asc' : 'sort-desc');
-    }
   }
 
   // Expose global methods

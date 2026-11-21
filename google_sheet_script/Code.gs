@@ -58,6 +58,7 @@ function onOpen() {
     .addItem('Turn OFF auto-import', 'disableAutoImport')
     .addSeparator()
     .addItem('Show last update info', 'showStatus')
+    .addItem('Rebuild "Last Updated" tab', 'refreshLastUpdatedTab')
     .addToUi();
 }
 
@@ -344,4 +345,30 @@ function prepareTab_(sh, header, totalRows, textCols) {
 function stampImport_(kind, rows) {
   PropertiesService.getDocumentProperties()
     .setProperty('import_' + kind, JSON.stringify({ rows: rows, at: Date.now() }));
+  writeLastUpdatedTab_();
 }
+
+/**
+ * "Last Updated" tab — read by the dashboard so every user sees when the data
+ * in this Google Sheet was last refreshed. One row per data tab.
+ *   Tab | Rows | Updated (ISO) | Updated (local)
+ */
+var LAST_UPDATED_TAB = 'Last Updated';
+function writeLastUpdatedTab_() {
+  try {
+    var s = getStatus(), tz = Session.getScriptTimeZone();
+    var out = [['Tab', 'Rows', 'Updated (ISO)', 'Updated (local)']];
+    Object.keys(TABS).forEach(function (k) {
+      var x = s[k];
+      out.push([TABS[k], x ? x.rows : '', x ? new Date(x.at).toISOString() : '',
+        x ? Utilities.formatDate(new Date(x.at), tz, 'dd-MMM-yyyy hh:mm a') : 'not imported yet']);
+    });
+    var sh = getOrCreateTab_(LAST_UPDATED_TAB);
+    sh.clearContents();
+    sh.getRange(1, 1, out.length, 4).setNumberFormat('@').setValues(out);
+    sh.getRange(1, 1, 1, 4).setFontWeight('bold');
+  } catch (e) { console.warn('Last Updated tab not written: ' + e); }
+}
+
+/** Menu helper: rebuild the "Last Updated" tab from the stored import times. */
+function refreshLastUpdatedTab() { writeLastUpdatedTab_(); }

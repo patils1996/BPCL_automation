@@ -395,15 +395,13 @@
       }
     });
     return [...m.values()].sort((a, b) => {
-      let areaA = String(a.area || '').trim();
-      let areaB = String(b.area || '').trim();
-      let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-      if (c !== 0) return c;
-      let nameA = String(a.name || '').trim();
-      let nameB = String(b.name || '').trim();
-      let nc = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-      if (nc !== 0) return nc;
-      return String(a.id || '').localeCompare(String(b.id || ''));
+      const aa = String(a.area || '').trim(), ba = String(b.area || '').trim();
+      const ua = !aa || aa === 'Unmapped', ub = !ba || ba === 'Unmapped';
+      if (ua !== ub) return ua ? 1 : -1;
+      const c = aa.localeCompare(ba, 'en', { sensitivity: 'base' });
+      if (c) return c;
+      const ra = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0, rb = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
+      return ra - rb || String(a.name || '').localeCompare(String(b.name || ''));
     });
   }
 
@@ -559,17 +557,15 @@
       rows = rows.filter(isLowStockSite);
     }
 
-    // Sort rows sales-area wise (Sales Area ascending, then outlet name/id)
+    // Sort rows sales-area wise (Sales Area ascending, then RO code / name)
     rows.sort((a, b) => {
-      let areaA = String(a.area || '').trim();
-      let areaB = String(b.area || '').trim();
-      let c = areaA.localeCompare(areaB, undefined, { numeric: true, sensitivity: 'base' });
-      if (c !== 0) return c;
-      let nameA = String(a.name || '').trim();
-      let nameB = String(b.name || '').trim();
-      let nc = nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
-      if (nc !== 0) return nc;
-      return String(a.id || '').localeCompare(String(b.id || ''));
+      const aa = String(a.area || '').trim(), ba = String(b.area || '').trim();
+      const ua = !aa || aa === 'Unmapped', ub = !ba || ba === 'Unmapped';
+      if (ua !== ub) return ua ? 1 : -1;
+      const c = aa.localeCompare(ba, 'en', { sensitivity: 'base' });
+      if (c) return c;
+      const ra = parseInt(String(a.id || '').replace(/\D/g, ''), 10) || 0, rb = parseInt(String(b.id || '').replace(/\D/g, ''), 10) || 0;
+      return ra - rb || String(a.name || '').localeCompare(String(b.name || ''));
     });
 
     // Dynamically update KPIs matching current filter selection

@@ -23,6 +23,8 @@
   <link rel="stylesheet" href="overview_layout.css">
   <link rel="stylesheet" href="multiselect.css">
   <link rel="stylesheet" href="territory_performance.css">
+  <link rel="stylesheet" href="filter_drawer.css">
+  <link rel="stylesheet" href="data_freshness.css">
   
   <!-- Favicon & PWA Icons with Official BPCL Automation Logo -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -1177,7 +1179,7 @@
                   <tr>
                     <th data-sort="roid">RO ID</th>
                     <th data-sort="outlet_name">RO Name</th>
-                    <th data-sort="sales_area">Sales Area</th>
+                    <th data-sort="sales_area" class="sort-asc">Sales Area</th>
                     <th data-sort="vendor">Vendor</th>
                     <th data-sort="eo_name">EO</th>
                     <th data-sort="mst_name">MST</th>
@@ -1549,7 +1551,7 @@
                   <tr>
                     <th data-sort="roid">ROID</th>
                     <th data-sort="outlet_name">Retail Outlet</th>
-                    <th data-sort="sales_area">Sales Area</th>
+                    <th data-sort="sales_area" class="sort-asc">Sales Area</th>
                     <th data-sort="eo_name">TE Name</th>
                     <th data-sort="vendor">RA Vendor</th>
                     <th data-sort="mst_name">MST Name</th>
@@ -2395,6 +2397,7 @@
 
   <script src="sample_data.js"></script>
   <script src="day_monitoring_config.js"></script>
+  <script src="data_freshness.js"></script>
   <script src="workbook_reader.js"></script>
   <script src="multiselect.js"></script>
   <script src="scope_filter.js"></script>
@@ -2408,6 +2411,7 @@
   <script src="tank_stock.js"></script>
   <script src="day_end_mis.js"></script>
   <script src="territory_performance.js"></script>
+  <script src="filter_drawer.js"></script>
   <script src="share_kit.js"></script>
 </body>
 </html>
