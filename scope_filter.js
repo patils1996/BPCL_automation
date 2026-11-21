@@ -27,9 +27,14 @@
 
   function load() {
     try {
-      var v = JSON.parse(localStorage.getItem(KEY) || '[]');
+      var item = localStorage.getItem(KEY);
+      if (item === null) {
+        // First-time visit: default to 'Belgaum' so mobile & low-memory devices load instantly
+        return ['Belgaum'];
+      }
+      var v = JSON.parse(item || '[]');
       return Array.isArray(v) ? v.filter(Boolean).map(String) : [];
-    } catch (e) { return []; }
+    } catch (e) { return ['Belgaum']; }
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(selected)); } catch (e) { /* ignore */ } }
   function same(a, b) { return a.length === b.length && a.every(function (x) { return b.indexOf(x) !== -1; }); }

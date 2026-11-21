@@ -42,6 +42,12 @@ var KEYS = {
   tank_onboarded: { ro: ['ROID', 'RO ID'], tank: ['Local tank id', 'Tank ID'], product: ['Product_Name', 'Product Name'] }
 };
 
+var ALLOWED_COLS = {
+  tank_latest: ['RO ID', 'ROID', 'Retail Outlet', 'RO_Name', 'Territory', 'Sales Area', 'Salesarea', 'RA Vendor', 'RA_Vendor', 'State', 'Product Name', 'Product_Name', 'Stock', 'On-boarded Tankage', 'On-Line Tankage', 'Status'],
+  tank_hourly: ['RO ID', 'ROID', 'Product Name', 'Product_Name', 'Tank ID', 'Local tank id', 'Dip_Time', 'Dip Time', 'Dip', 'Dip (cm)', 'Volume', 'Stock (L)'],
+  tank_onboarded: ['ROID', 'RO ID', 'Local tank id', 'Tank ID', 'Product_Name', 'Product Name', 'Status', 'Retail Outlet', 'RO_Name', 'Territory', 'Sales Area', 'Salesarea', 'RA Vendor', 'RA_Vendor', 'State']
+};
+
 function pick(row, names) {
   if (!names) return '';
   for (var i = 0; i < names.length; i++) {
@@ -65,18 +71,29 @@ function fixDates(row) {
 function tankObjects(ws, kind) {
   var src = XLSX.utils.sheet_to_json(ws, { defval: null, raw: true });
   var cfg = KEYS[kind];
+  var allowed = ALLOWED_COLS[kind] || null;
   var out = [];
   for (var i = 0; i < src.length; i++) {
-    var s = src[i], r = {};
-    for (var k in s) r[String(k).trim()] = s[k];
-    var ro = key(pick(r, cfg.ro)).replace(/\.0+$/, '');
+    var s = src[i];
+    var ro = key(pick(s, cfg.ro)).replace(/\.0+$/, '');
     if (!/^\d{3,10}$/.test(ro)) continue; // skip Power BI footer notes / blank lines
+    var r = {};
+    if (allowed) {
+      for (var j = 0; j < allowed.length; j++) {
+        var col = allowed[j];
+        if (s[col] !== undefined && s[col] !== null) r[col] = s[col];
+      }
+    } else {
+      for (var k in s) r[String(k).trim()] = s[k];
+    }
     r._ro = ro;
-    r._product = key(pick(r, cfg.product));
-    if (cfg.tank) r._tank = key(pick(r, cfg.tank)).replace(/\.0+$/, '');
+    r._product = key(pick(s, cfg.product));
+    if (cfg.tank) r._tank = key(pick(s, cfg.tank)).replace(/\.0+$/, '');
     fixDates(r);
     out.push(r);
+    src[i] = null;
   }
+  src = null;
   return out;
 }
 

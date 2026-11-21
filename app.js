@@ -1523,9 +1523,11 @@ function updateOverviewCharts() {
       equipmentCompChartInstance.destroy();
     }
     
-    const salesAreaLabels = salesAreaSummary.map(s => s.key.replace(' Retail', '').replace('-retail', ''));
-    const mpdUptimeVals = salesAreaSummary.map(s => (s.mpdUptime * 100).toFixed(1));
-    const tankUptimeVals = salesAreaSummary.map(s => (s.tankUptime * 100).toFixed(1));
+    // Cap chart bars to top 15 to prevent mobile canvas memory crashes
+    const chartSalesAreas = salesAreaSummary.slice(0, 15);
+    const salesAreaLabels = chartSalesAreas.map(s => s.key.replace(' Retail', '').replace('-retail', ''));
+    const mpdUptimeVals = chartSalesAreas.map(s => (s.mpdUptime * 100).toFixed(1));
+    const tankUptimeVals = chartSalesAreas.map(s => (s.tankUptime * 100).toFixed(1));
     
     equipmentCompChartInstance = new Chart(equipCtx, {
       type: 'bar',
@@ -1592,8 +1594,9 @@ function updateOverviewCharts() {
       eoHorizontalChartInstance.destroy();
     }
     
-    const eoLabels = eoSummary.map(e => e.key);
-    const eoVals = eoSummary.map(e => (e.uptime * 100).toFixed(1));
+    const chartEos = eoSummary.slice(0, 15);
+    const eoLabels = chartEos.map(e => e.key);
+    const eoVals = chartEos.map(e => (e.uptime * 100).toFixed(1));
     
     eoHorizontalChartInstance = new Chart(eoCtx, {
       type: 'bar',
@@ -1641,7 +1644,7 @@ function updateOverviewCharts() {
       soHorizontalChartInstance.destroy();
     }
     
-    const sortedSoSummary = [...soSummary].sort((a, b) => b.uptime - a.uptime);
+    const sortedSoSummary = [...soSummary].sort((a, b) => b.uptime - a.uptime).slice(0, 15);
     const soLabels = sortedSoSummary.map(s => s.key);
     const soVals = sortedSoSummary.map(s => (s.uptime * 100).toFixed(1));
     
@@ -2854,10 +2857,21 @@ window.renderDayMonitoringTable = function() {
   window.dayMonitoringFilteredList = list;
   if (list.length === 0) {
     tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem;">No matching offline or partially online outlets.</td></tr>`;
+    const pEl = document.getElementById('day-monitoring-pagination');
+    if (pEl) pEl.style.display = 'none';
     return;
   }
 
-  list.forEach(ro => {
+  // Pagination for Day Monitoring to prevent mobile browser crash
+  const DM_PAGE_SIZE = 40;
+  let page = window._dmPage || 1;
+  const totalPages = Math.max(1, Math.ceil(list.length / DM_PAGE_SIZE));
+  if (page > totalPages) page = 1;
+  window._dmPage = page;
+  const startIdx = (page - 1) * DM_PAGE_SIZE;
+  const pagedList = list.slice(startIdx, startIdx + DM_PAGE_SIZE);
+
+  pagedList.forEach(ro => {
     const tr = document.createElement('tr');
     
     // Shared cloud values are preferred; localStorage remains an offline fallback.
@@ -2984,6 +2998,41 @@ window.renderDayMonitoringTable = function() {
 
     tbody.appendChild(tr);
   });
+
+  // Responsive pagination bar for Day Monitoring
+  let paginEl = document.getElementById('day-monitoring-pagination');
+  const tableCard = document.querySelector('#tab-day-monitoring .table-card') || (tbody.closest ? tbody.closest('.table-card') : null);
+  if (!paginEl && tableCard) {
+    paginEl = document.createElement('div');
+    paginEl.id = 'day-monitoring-pagination';
+    tableCard.appendChild(paginEl);
+  }
+  if (paginEl) {
+    if (totalPages <= 1) {
+      paginEl.style.display = 'none';
+      paginEl.innerHTML = '';
+    } else {
+      paginEl.style.display = 'flex';
+      paginEl.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 18px; margin:10px 1.5rem 1rem; background:var(--card-bg, #fff); border-radius:10px; border:1px solid var(--border-color, #e2e8f0); flex-wrap:wrap; gap:10px; font-size:13px;';
+      paginEl.innerHTML = `
+        <span style="font-weight:600; color:var(--text-muted, #64748b);">
+          Showing ${startIdx + 1}–${Math.min(startIdx + DM_PAGE_SIZE, list.length)} of <b>${list.length.toLocaleString()}</b> outlets (Page <b>${page}</b> of <b>${totalPages}</b>)
+        </span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${page > 1 ? 'pointer' : 'not-allowed'}; opacity:${page > 1 ? '1' : '0.4'};" onclick="window.dmNavPage(-1)">← Previous</button>
+          <button class="btn-secondary" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${page < totalPages ? 'pointer' : 'not-allowed'}; opacity:${page < totalPages ? '1' : '0.4'};" onclick="window.dmNavPage(1)">Next →</button>
+        </div>
+      `;
+    }
+  }
+};
+
+window.dmNavPage = function(delta) {
+  const cur = window._dmPage || 1;
+  window._dmPage = Math.max(1, cur + delta);
+  if (window.renderDayMonitoringTable) window.renderDayMonitoringTable();
+  const target = document.getElementById('tab-day-monitoring');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.exportDayMonitoringData = function() {
@@ -3909,10 +3958,21 @@ window.renderMonitoringComparison = async function() {
   
   if (compareList.length === 0) {
     tbody.innerHTML = `<tr><td colspan="11" style="text-align: center; padding: 2rem;">No matching status changes found.</td></tr>`;
+    const pEl = document.getElementById('mon-comparison-pagination');
+    if (pEl) pEl.style.display = 'none';
     return;
   }
   
-  compareList.forEach(ro => {
+  // Pagination for Monitoring Comparison to prevent mobile browser crash
+  const MON_PAGE_SIZE = 40;
+  let monPage = window._monPage || 1;
+  const totalMonPages = Math.max(1, Math.ceil(compareList.length / MON_PAGE_SIZE));
+  if (monPage > totalMonPages) monPage = 1;
+  window._monPage = monPage;
+  const monStartIdx = (monPage - 1) * MON_PAGE_SIZE;
+  const pagedCompareList = compareList.slice(monStartIdx, monStartIdx + MON_PAGE_SIZE);
+
+  pagedCompareList.forEach(ro => {
     const baseStatus = baselineStatusMap[ro.roid] || 'Offline';
     const currStatus = ro.status;
     
@@ -3952,6 +4012,41 @@ window.renderMonitoringComparison = async function() {
     `;
     tbody.appendChild(tr);
   });
+
+  // Responsive pagination bar for Monitoring Comparison
+  let monPaginEl = document.getElementById('mon-comparison-pagination');
+  const monTableCard = document.querySelector('#tab-monitoring .table-card') || (tbody.closest ? tbody.closest('.table-card') : null);
+  if (!monPaginEl && monTableCard) {
+    monPaginEl = document.createElement('div');
+    monPaginEl.id = 'mon-comparison-pagination';
+    monTableCard.appendChild(monPaginEl);
+  }
+  if (monPaginEl) {
+    if (totalMonPages <= 1) {
+      monPaginEl.style.display = 'none';
+      monPaginEl.innerHTML = '';
+    } else {
+      monPaginEl.style.display = 'flex';
+      monPaginEl.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 18px; margin:10px 1.5rem 1rem; background:var(--card-bg, #fff); border-radius:10px; border:1px solid var(--border-color, #e2e8f0); flex-wrap:wrap; gap:10px; font-size:13px;';
+      monPaginEl.innerHTML = `
+        <span style="font-weight:600; color:var(--text-muted, #64748b);">
+          Showing ${monStartIdx + 1}–${Math.min(monStartIdx + MON_PAGE_SIZE, compareList.length)} of <b>${compareList.length.toLocaleString()}</b> outlets (Page <b>${monPage}</b> of <b>${totalMonPages}</b>)
+        </span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-secondary" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${monPage > 1 ? 'pointer' : 'not-allowed'}; opacity:${monPage > 1 ? '1' : '0.4'};" onclick="window.monNavPage(-1)">← Previous</button>
+          <button class="btn-secondary" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${monPage < totalMonPages ? 'pointer' : 'not-allowed'}; opacity:${monPage < totalMonPages ? '1' : '0.4'};" onclick="window.monNavPage(1)">Next →</button>
+        </div>
+      `;
+    }
+  }
+};
+
+window.monNavPage = function(delta) {
+  const cur = window._monPage || 1;
+  window._monPage = Math.max(1, cur + delta);
+  if (window.renderMonitoringComparison) window.renderMonitoringComparison();
+  const target = document.getElementById('tab-monitoring');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 window.setupMonitoringListeners = function() {
@@ -4191,11 +4286,25 @@ window.syncGoogleSheet = async function(silent = false, opts = {}) {
       const dataFp = rowsFingerprint(window.rawDataRows);
       const latest = (await DB.getAllRecords())[0];
       if (!latest || latest.dataFp !== dataFp || latest.date !== dateStr) {
+        // Compact rawData to keep only essential fields to prevent mobile IndexedDB quota crash
+        const compactRaw = (window.rawDataRows || []).map(r => ({
+          roid: r.roid,
+          outlet_name: r.outlet_name,
+          sales_area: r.sales_area,
+          territory: r.territory,
+          vendor: r.vendor,
+          onb_mpd: r.onb_mpd,
+          onl_mpd: r.onl_mpd,
+          onb_tnk: r.onb_tnk,
+          onl_tnk: r.onl_tnk,
+          status: r.status,
+          ro_online_status: r.ro_online_status
+        }));
         await DB.saveRecord({
           id: now.getTime(), timestamp: now.getTime(), date: dateStr, time: timeStr,
           filename: "Google_Sheet_Live_Sync.xlsx",
           metrics: Object.assign({}, window.overallMetrics),
-          rawData: JSON.parse(JSON.stringify(window.rawDataRows)),
+          rawData: compactRaw,
           dataFp: dataFp
         });
       }

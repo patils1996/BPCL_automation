@@ -433,11 +433,21 @@
     const inSet = (arr, v) => !arr.length || arr.includes(String(v || ''));
     const q = key(searchEl.value), territory = pick(terrEl), area = pick(areaEl), vendor = pick(vendEl), state = pick(stateEl);
     let rows = allRO.filter(r => (!q || r.id.includes(q) || key(r.name).includes(q)) && inSet(territory, r.territory) && (!window.GlobalScope || GlobalScope.match(r.territory)) && inSet(area, r.area) && inSet(vendor, r.vendor) && inSet(state, r.state));
-    if ($('rowCount')) $('rowCount').textContent = `${rows.length.toLocaleString()} outlets`;
+    
+    // Pagination to prevent mobile browser crash on thousands of outlets
+    const TS_PAGE_SIZE = 40;
+    let page = window._tsPage || 1;
+    const totalPages = Math.max(1, Math.ceil(rows.length / TS_PAGE_SIZE));
+    if (page > totalPages) page = 1;
+    window._tsPage = page;
+    const startIdx = (page - 1) * TS_PAGE_SIZE;
+    const pagedRows = rows.slice(startIdx, startIdx + TS_PAGE_SIZE);
+
+    if ($('rowCount')) $('rowCount').textContent = `${rows.length.toLocaleString()} outlets (Showing ${rows.length ? startIdx + 1 : 0}–${Math.min(startIdx + TS_PAGE_SIZE, rows.length)})`;
 
     const tbody = $('roTable');
     if (tbody) {
-      tbody.innerHTML = rows.map(r => {
+      tbody.innerHTML = pagedRows.map(r => {
         let st = r.offline === 0 && r.online > 0 ? 'ONLINE' : (r.online === 0 ? 'OFFLINE' : 'PARTIAL');
         return `<tr onclick="openRO('${r.id}')"><td class="ts-id" title="${esc(r.id)}">${esc(r.id)}</td><td class="ro-name" title="${esc(r.name)}">${esc(r.name)}</td><td title="${esc(r.territory)} / ${esc(r.area)}">${esc(r.territory)} <span class="muted">/ ${esc(r.area)}</span></td><td title="${esc(r.vendor)}">${esc(r.vendor)}</td><td class="num product-ebms">${fmt(r.ebms, 2)}</td><td class="num product-hsd">${fmt(r.hsd, 2)}</td><td class="num"><b>${fmt(r.total, 2)}</b></td><td class="num"><span class="ts-tanks">${r.online}/${r.tanks.length}</span></td><td><span class="pill ${st === 'OFFLINE' ? 'off' : st === 'ONLINE' ? '' : 'partial'}">${st === 'ONLINE' ? 'Online' : st === 'OFFLINE' ? 'Offline' : 'Partial'}</span></td></tr>`;
       }).join('') || '<tr><td colspan="9" class="empty">No matching retail outlets found.</td></tr>';
@@ -445,7 +455,7 @@
 
     const cardWrap = $('roCardsWrap');
     if (cardWrap) {
-      cardWrap.innerHTML = rows.map(r => {
+      cardWrap.innerHTML = pagedRows.map(r => {
         let st = r.offline === 0 && r.online > 0 ? 'ONLINE' : (r.online === 0 ? 'OFFLINE' : 'PARTIAL');
         return `
           <div class="ro-card" onclick="openRO('${r.id}')">
@@ -478,7 +488,41 @@
         `;
       }).join('') || '<div class="empty">No matching retail outlets found.</div>';
     }
+
+    // Responsive pagination bar
+    let paginEl = $('tsPaginationControls');
+    if (!paginEl && cardWrap && cardWrap.parentNode) {
+      paginEl = document.createElement('div');
+      paginEl.id = 'tsPaginationControls';
+      cardWrap.parentNode.appendChild(paginEl);
+    }
+    if (paginEl) {
+      if (totalPages <= 1) {
+        paginEl.style.display = 'none';
+        paginEl.innerHTML = '';
+      } else {
+        paginEl.style.display = 'flex';
+        paginEl.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:12px 16px; margin-top:14px; background:var(--card-bg, #fff); border-radius:12px; border:1px solid var(--border-color, #e2e8f0); flex-wrap:wrap; gap:10px; font-size:13px;';
+        paginEl.innerHTML = `
+          <span style="font-weight:600; color:var(--text-muted, #64748b);">
+            Page <b>${page}</b> of <b>${totalPages}</b> (${rows.length.toLocaleString()} outlets)
+          </span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-sm" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${page > 1 ? 'pointer' : 'not-allowed'}; opacity:${page > 1 ? '1' : '0.4'};" onclick="window.tsNavPage(-1)">← Previous</button>
+            <button class="btn btn-sm" type="button" style="padding:6px 14px; font-weight:700; border-radius:8px; cursor:${page < totalPages ? 'pointer' : 'not-allowed'}; opacity:${page < totalPages ? '1' : '0.4'};" onclick="window.tsNavPage(1)">Next →</button>
+          </div>
+        `;
+      }
+    }
   }
+
+  window.tsNavPage = function(delta) {
+    const cur = window._tsPage || 1;
+    window._tsPage = Math.max(1, cur + delta);
+    drawROTable();
+    const panel = $('dashboardView');
+    if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   window.openRO = function(id) {
     selectedRO = id;
