@@ -357,7 +357,20 @@
     });
     data.hourly.forEach(r => {
       if (!r._ro) return;
-      ensure(r._ro, r);
+      let x = ensure(r._ro, r);
+      if (!x.tanks.some(t => String(t._tank || t['Local tank id'] || '').replace(/\.0+$/, '') === String(r._tank || '').replace(/\.0+$/, ''))) {
+        x.tanks.push({
+          ROID: r._ro,
+          'Local tank id': r._tank,
+          _tank: r._tank,
+          Product_Name: r._product || r['Product Name'],
+          _product: r._product,
+          Status: 'ONLINE',
+          'On-Boarded Tankage (KL)': r['On-Boarded Tankage (KL)'],
+          Table_updated_at: r.Date || r.Time || 'Hourly stock'
+        });
+        x.online++;
+      }
     });
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -536,16 +549,23 @@
     let prods = ['EBMS', 'HSD'];
     if ($('productSummaries')) {
       $('productSummaries').innerHTML = prods.map(p => {
-        let recs = ro.latest.filter(r => key(r['Product Name']) === p),
-            capacity = recs.reduce((s, r) => s + (num(r['On-boarded Tankage']) || 0), 0),
+        let recs = ro.latest.filter(r => key(r['Product Name']).includes(p) || p.includes(key(r['Product Name']))),
+            capacity = recs.reduce((s, r) => s + (num(r['On-boarded Tankage'] ?? r['On-Boarded Tankage (KL)']) || 0), 0),
             stock = recs.reduce((s, r) => s + (num(r.Stock) || 0), 0),
-            onlineCap = recs.reduce((s, r) => s + (num(r['On-Line Tankage']) || 0), 0),
-            ullage = Math.max(0, capacity - stock),
+            onlineCap = recs.reduce((s, r) => s + (num(r['On-Line Tankage'] ?? r['Online Tankage']) || 0), 0);
+        if (!capacity && ro.tanks) {
+          let pTanks = ro.tanks.filter(t => {
+            let tp = key(t.Product_Name || t['Product Name'] || t._product || '');
+            return tp.includes(p) || p.includes(tp);
+          });
+          capacity = pTanks.reduce((s, t) => s + (num(t['On-Boarded Tankage (KL)'] ?? t['On-boarded Tankage']) || 0), 0);
+        }
+        let ullage = Math.max(0, capacity - stock),
             net = capacity ? stock / capacity * 100 : 0;
         return `<div class="summarybox"><h3>STOCK SUMMARY — <span class="product-${p.toLowerCase()}">${p}</span></h3><table><thead><tr><th>Product</th><th class="num">Capacity (KL)</th><th class="num">Stock (KL)</th><th class="num">Ullage (KL)</th><th class="num">Stock %</th><th class="num">Ullage %</th></tr></thead><tbody><tr><td class="product-${p.toLowerCase()}">${p}</td><td class="num">${fmt(capacity, 2)}</td><td class="num">${fmt(stock, 2)}</td><td class="num">${fmt(ullage, 2)}</td><td class="num">${capacity ? fmt(net, 1) + '%' : '—'}</td><td class="num">${capacity ? fmt(100 - net, 1) + '%' : '—'}</td></tr></tbody></table><div class="small" style="padding:0 14px 12px">On-line tankage: ${fmt(onlineCap, 2)} KL • ${recs.length} product record(s)</div></div>`;
       }).join('');
     }
-    let tanks = ro.tanks.slice().sort((a, b) => (num(a['Local tank id']) || 0) - (num(b['Local tank id']) || 0));
+    let tanks = ro.tanks.slice().sort((a, b) => (num(a['Local tank id'] || a._tank) || 0) - (num(b['Local tank id'] || b._tank) || 0));
     if ($('tankCards')) {
       $('tankCards').innerHTML = tanks.length ? tanks.map(t => tankCard(t, ro)).join('') : '<div class="empty">No onboarded tank records for this RO.</div>';
       document.querySelectorAll('#tab-tank-stock .tank[data-tank], .tank[data-tank]').forEach(el => el.addEventListener('click', () => showHourly(id, el.dataset.tank, el.dataset.product)));
@@ -553,26 +573,70 @@
   };
 
   function tankCard(t, ro) {
-    let id = key(t['Local tank id']), p = key(t.Product_Name), hr = data.hourly.find(h => h._ro === ro.id && h._tank === id && h._product === p);
+    let id = String(t._tank || t['Local tank id'] || t['Tank ID'] || '').trim().replace(/\.0+$/, '');
+    let p = key(t.Product_Name || t['Product Name'] || t._product || '');
+    let hr = data.hourly.find(h => h._ro === ro.id && String(h._tank || '').replace(/\.0+$/, '') === id && (h._product === p || (h._product && h._product.includes(p)) || (p && p.includes(h._product))))
+          || data.hourly.find(h => h._ro === ro.id && String(h._tank || '').replace(/\.0+$/, '') === id);
     let hours = ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'];
-    let vals = hr ? hours.map(h => num(hr[h + ' %'])) : [];
-    let valid = vals.filter(v => v != null), current = valid.length ? valid[valid.length - 1] : null, first = valid.length ? valid[0] : null, capacity = num(t['On-Boarded Tankage (KL)']) ?? (hr ? num(hr['On-Boarded Tankage (KL)']): null);
-    let status = key(t.Status), upRaw = t['Uptime_tank(%)'];
-    // Pasted Google data stores 100% as the number 1 — show it as a percent
-    let up = typeof upRaw === 'number' ? (upRaw <= 1 ? (upRaw * 100).toFixed(1) : upRaw.toFixed(1)) + '%' : String(upRaw ?? '—');
-    let color = p === 'EBMS' ? '#22bd42' : p === 'HSD' ? '#079fe8' : '#f2d000';
-    return `<div class="tank" data-tank="${esc(id)}" data-product="${esc(p)}"><div class="tanktop"><div class="tanktitle">Tank ${esc(id)} <small>(${fmt(capacity, 2)} KL)</small></div><div>${status === 'ONLINE' ? '🔒' : '⚠️'} <span class="tankproduct product-${p.toLowerCase()}">${esc(p)}</span></div></div><div class="tankmeta"><span>◈ ${esc(up)} uptime</span><span class="tag">${esc(t['Morning_Status'] || '—')} / ${esc(t['Evening_Status'] || '—')}</span></div><div class="gauge" style="--pct:${Math.max(0, Math.min(100, current ?? 0))};--gauge:${color}"><span>${current == null ? '—' : fmt(current, 2) + '%'}</span></div><div class="tankstats"><div><div class="statlabel">First reported %</div><div class="statvalue">${first == null ? '—' : fmt(first, 2) + '%'}</div></div><div style="text-align:right"><div class="statlabel">Latest hourly %</div><div class="statvalue">${current == null ? '—' : fmt(current, 2) + '%'}</div></div><div><div class="statlabel">Onboarded tankage</div><div class="statvalue">${fmt(capacity, 2)} KL</div></div><div style="text-align:right"><div class="statlabel">Online hours</div><div class="statvalue">${fmt(num(t.Online_hours))} / 24</div></div></div><div class="tankbottom"><div><div class="statlabel">Table updated</div><div class="statvalue">${esc(t.Table_updated_at || '—')}</div></div><div style="text-align:right"><div class="statlabel">Status</div><span class="pill ${status === 'OFFLINE' ? 'off' : status === 'ONLINE' ? '' : 'partial'}">${esc(t.Status || 'Unknown')}</span></div></div></div>`;
+    let vals = hr ? hours.map(h => num(hr[h + ' %'] ?? hr[h])) : [];
+    let valid = vals.filter(v => v != null);
+    // Convert 0..1 decimal fraction to 0..100 percentage (e.g. 0.54 -> 54.0%)
+    if (valid.length > 0 && valid.every(v => v >= 0 && v <= 1.0)) {
+      vals = vals.map(v => v != null ? v * 100 : null);
+      valid = vals.filter(v => v != null);
+    }
+    let current = valid.length ? valid[valid.length - 1] : null,
+        first = valid.length ? valid[0] : null,
+        capacity = num(t['On-Boarded Tankage (KL)'] ?? t['On-boarded Tankage'] ?? t.Tankage) ?? (hr ? num(hr['On-Boarded Tankage (KL)'] ?? hr['On-boarded Tankage']) : null);
+    if (capacity == null && ro && ro.latest) {
+      let rec = ro.latest.find(r => key(r['Product Name']).includes(p) || (p && p.includes(key(r['Product Name']))));
+      if (rec) capacity = num(rec['On-boarded Tankage'] ?? rec['On-Boarded Tankage (KL)']);
+    }
+    let status = key(t.Status || 'ONLINE');
+    let upRaw = t['Uptime_tank(%)'] ?? t['Tank_online(%)'] ?? t['Uptime(%)'] ?? t.Uptime;
+    let up = '—';
+    if (typeof upRaw === 'number') {
+      up = (upRaw <= 1 ? (upRaw * 100).toFixed(1) : upRaw.toFixed(1)) + '%';
+    } else if (upRaw !== null && upRaw !== undefined && String(upRaw).trim() !== '') {
+      let upNum = num(upRaw);
+      if (upNum != null) {
+        up = (upNum <= 1 ? (upNum * 100).toFixed(1) : upNum.toFixed(1)) + '%';
+      } else {
+        up = String(upRaw).trim();
+        if (!up.endsWith('%') && Number.isFinite(Number(up))) up += '%';
+      }
+    }
+    let morning = t.Morning_Status || t['Morning Status'] || '—';
+    let evening = t.Evening_Status || t['Evening Status'] || '—';
+    let onlineHrs = t.Online_hours ?? t['Online hours'] ?? t['Online_Hours'];
+    let tableUpdated = t.Table_updated_at || t['Table updated at'] || t['Updated_at'] || '—';
+    let isEbms = p.includes('EBMS') || p.includes('MS');
+    let color = isEbms ? '#22bd42' : (p.includes('HSD') ? '#079fe8' : '#f59e0b');
+    let displayProduct = p || (hr ? key(hr._product || hr['Product Name']) : '') || 'FUEL';
+    let gaugePct = current != null ? Math.max(0, Math.min(100, current)) : 0;
+
+    return `<div class="tank" data-tank="${esc(id)}" data-product="${esc(displayProduct)}"><div class="tanktop"><div class="tanktitle">Tank ${esc(id)} <small>(${fmt(capacity, 2)} KL)</small></div><div>${status === 'ONLINE' ? '🔒' : '⚠️'} <span class="tankproduct product-${displayProduct.toLowerCase()}">${esc(displayProduct)}</span></div></div><div class="tankmeta"><span>◈ ${esc(up)} uptime</span><span class="tag">${esc(morning)} / ${esc(evening)}</span></div><div class="gauge" style="--pct:${gaugePct};--gauge:${color}"><span>${current == null ? '—' : fmt(current, 2) + '%'}</span></div><div class="tankstats"><div><div class="statlabel">First reported %</div><div class="statvalue">${first == null ? '—' : fmt(first, 2) + '%'}</div></div><div style="text-align:right"><div class="statlabel">Latest hourly %</div><div class="statvalue">${current == null ? '—' : fmt(current, 2) + '%'}</div></div><div><div class="statlabel">Onboarded tankage</div><div class="statvalue">${fmt(capacity, 2)} KL</div></div><div style="text-align:right"><div class="statlabel">Online hours</div><div class="statvalue">${onlineHrs != null ? fmt(num(onlineHrs)) : '—'} / 24</div></div></div><div class="tankbottom"><div><div class="statlabel">Table updated</div><div class="statvalue">${esc(tableUpdated)}</div></div><div style="text-align:right"><div class="statlabel">Status</div><span class="pill ${status === 'OFFLINE' ? 'off' : status === 'ONLINE' ? '' : 'partial'}">${esc(t.Status || 'Unknown')}</span></div></div></div>`;
   }
 
   function showHourly(roId, tankId, product) {
-    let row = data.hourly.find(h => h._ro === roId && h._tank === key(tankId) && h._product === key(product));
+    let tId = String(tankId).trim().replace(/\.0+$/, '');
+    let pKey = key(product);
+    let row = data.hourly.find(h => h._ro === roId && String(h._tank || '').replace(/\.0+$/, '') === tId && (h._product === pKey || (h._product && h._product.includes(pKey)) || (pKey && pKey.includes(h._product))))
+           || data.hourly.find(h => h._ro === roId && String(h._tank || '').replace(/\.0+$/, '') === tId);
     $('hourlyPanel')?.classList.remove('hidden');
-    if ($('hourlyTitle')) $('hourlyTitle').textContent = `HOURLY STOCK TREND — TANK ${tankId} (${product})`;
+    if ($('hourlyTitle')) $('hourlyTitle').textContent = `HOURLY STOCK TREND — TANK ${tId} (${product || 'ALL'})`;
     if ($('hourlySubtitle')) $('hourlySubtitle').textContent = 'Hourly stock percentage from Stock hourly.xlsx';
     let hours = ['12 AM', '1 AM', '2 AM', '3 AM', '4 AM', '5 AM', '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM', '11 PM'];
-    let vals = hours.map(h => row ? num(row[h + ' %']) : null), max = Math.max(100, ...vals.filter(v => v != null));
+    let vals = hours.map(h => row ? num(row[h + ' %'] ?? row[h]) : null);
+    let valid = vals.filter(v => v != null);
+    if (valid.length > 0 && valid.every(v => v >= 0 && v <= 1.0)) {
+      vals = vals.map(v => v != null ? v * 100 : null);
+    }
+    let max = Math.max(100, ...vals.filter(v => v != null));
     if ($('hourlyChart')) {
-      $('hourlyChart').innerHTML = vals.map((v, i) => `<div class="barwrap" title="${hours[i]}: ${v == null ? 'No data' : fmt(v, 2) + '%'}"><small>${v == null ? '' : fmt(v, 0)}</small><div class="bar" style="height:${v == null ? 0 : Math.max(2, v / max * 145)}px;background:${key(product) === 'EBMS' ? '#22bd42' : '#079fe8'}"></div><label>${hours[i].replace(' ', '')}</label></div>`).join('');
+      let isEbms = pKey.includes('EBMS') || pKey.includes('MS');
+      let barBg = isEbms ? '#22bd42' : '#079fe8';
+      $('hourlyChart').innerHTML = vals.map((v, i) => `<div class="barwrap" title="${hours[i]}: ${v == null ? 'No data' : fmt(v, 2) + '%'}"><small>${v == null ? '' : fmt(v, 0)}</small><div class="bar" style="height:${v == null ? 0 : Math.max(2, v / max * 145)}px;background:${barBg}"></div><label>${hours[i].replace(' ', '')}</label></div>`).join('');
     }
     $('hourlyPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
