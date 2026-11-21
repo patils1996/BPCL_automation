@@ -532,6 +532,10 @@ function recalculateAndRefresh() {
     if (typeof window.renderNewLogicDashboard === 'function') {
       window.renderNewLogicDashboard();
     }
+
+    if (typeof window.renderTerritoryPerformance === 'function') {
+      window.renderTerritoryPerformance();
+    }
   }
 }
 
@@ -1005,6 +1009,9 @@ function processCalculations(rows) {
     window.__roLookup = look;
     if (window.TankStock && window.TankStock.refreshLookup) window.TankStock.refreshLookup();
   }
+
+  // Unscoped copy (role scope applied) for Territory Performance ranking
+  window.__unscopedROs = calculatedROs.slice();
 
   // Global Territory filter (chosen on any menu, applies to every menu)
   if (window.GlobalScope) {

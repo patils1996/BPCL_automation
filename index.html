@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="tank_stock_ui.css">
   <link rel="stylesheet" href="overview_layout.css">
   <link rel="stylesheet" href="multiselect.css">
+  <link rel="stylesheet" href="territory_performance.css">
   
   <!-- Favicon & PWA Icons with Official BPCL Automation Logo -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -105,6 +106,10 @@
       <div class="menu-item" id="sidebar-day-end-mis-btn" data-tab="tab-day-end-mis" onclick="switchSidebarTab('tab-day-end-mis')">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M12 18v-6"></path><polyline points="9 15 12 18 15 15"></polyline></svg>
         <span>Day End MIS Exporter</span>
+      </div>
+      <div class="menu-item" id="sidebar-territory-performance-btn" data-tab="tab-territory-performance" onclick="switchSidebarTab('tab-territory-performance')">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path></svg>
+        <span>Territory Performance</span>
       </div>
 
       <!-- Category 5: DATA -->
@@ -1787,6 +1792,141 @@
           </div>
         </div>
 
+        <!-- TAB: TERRITORY PERFORMANCE (REPORTS) -->
+        <div class="tab-panel" id="tab-territory-performance">
+          <div class="tp-wrap">
+            <div class="tp-header">
+              <div>
+                <h1>Territory Performance</h1>
+                <p>MPD · ATG · Auto RSP details, Equipment uptime and 2-slot uptime — ranked territory-wise</p>
+              </div>
+              <button type="button" class="tp-btn" id="tp-export" data-share-hide>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Export CSV</span>
+              </button>
+            </div>
+
+            <div id="tp-empty" class="tp-panel tp-empty">
+              No uptime data loaded yet. Upload the automation uptime Excel or use <b>Sync Sheet</b> — this report builds from the same data as the Dashboard.
+            </div>
+
+            <div id="tp-body" style="display:none">
+              <div class="tp-scope">Figures below for: <b id="tp-scope-label">All territories</b></div>
+
+              <div class="tp-kpis">
+                <div class="tp-kpi" id="tp-k-mpd">
+                  <div class="tp-kl">MPD Equipment Uptime</div>
+                  <div class="tp-kv">—</div><div class="tp-ks"></div>
+                  <div class="tp-kbar"><i></i></div>
+                </div>
+                <div class="tp-kpi" id="tp-k-atg">
+                  <div class="tp-kl">ATG Equipment Uptime</div>
+                  <div class="tp-kv">—</div><div class="tp-ks"></div>
+                  <div class="tp-kbar"><i></i></div>
+                </div>
+                <div class="tp-kpi" id="tp-k-rsp">
+                  <div class="tp-kl">Auto RSP</div>
+                  <div class="tp-kv">—</div><div class="tp-ks"></div>
+                  <div class="tp-kbar"><i></i></div>
+                </div>
+                <div class="tp-kpi tp-kpi-click" id="tp-k-eq" data-tp-basis="equipment" role="button" tabindex="0" aria-pressed="true" title="Rank territories by Equipment uptime">
+                  <div class="tp-kl">Equipment Uptime <span class="tp-kchip">Click to rank</span></div>
+                  <div class="tp-kv">—</div><div class="tp-ks"></div>
+                  <div class="tp-kbar"><i></i></div>
+                </div>
+                <div class="tp-kpi tp-kpi-click" id="tp-k-two" data-tp-basis="twoslot" role="button" tabindex="0" aria-pressed="false" title="Rank territories by 2-slot uptime">
+                  <div class="tp-kl">2-Slot Uptime <span class="tp-kchip">Click to rank</span></div>
+                  <div class="tp-kv">—</div><div class="tp-ks"></div>
+                  <div class="tp-kbar"><i></i></div>
+                </div>
+              </div>
+
+              <div class="tp-panel">
+                <div class="tp-panel-head">
+                  <div>
+                    <h3 id="tp-rank-title">Territory Ranking</h3>
+                    <div class="tp-sub" id="tp-rank-sub"></div>
+                  </div>
+                  <div class="tp-controls">
+                    <div class="tp-seg" role="group" aria-label="Rank by">
+                      <span class="tp-seg-lbl">Rank by</span>
+                      <button type="button" data-tp-basis="equipment">Equipment</button>
+                      <button type="button" data-tp-basis="twoslot">2 Slot Uptime</button>
+                    </div>
+                    <div class="tp-seg" role="group" aria-label="Rank level">
+                      <span class="tp-seg-lbl">Level</span>
+                      <button type="button" data-tp-level="territory">Territory</button>
+                      <button type="button" data-tp-level="area">Sales Area</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="tp-podium" id="tp-podium"></div>
+                <div class="tp-tablewrap">
+                  <table class="tp-table">
+                    <thead>
+                      <tr>
+                        <th class="ctr">Rank</th><th class="tp-lvl">Territory</th><th class="num">ROs</th>
+                        <th>Ranking Uptime</th><th class="num">Equipment</th><th class="num">2-Slot</th><th class="num">Gap to #1</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tp-rank-body"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tp-panel">
+                <div class="tp-panel-head">
+                  <div>
+                    <h3>MPD / ATG / Auto RSP &amp; Equipment Uptime Details</h3>
+                    <div class="tp-sub">Equipment uptime = online units ÷ onboarded units · rows follow the current ranking</div>
+                  </div>
+                </div>
+                <div class="tp-tablewrap">
+                  <table class="tp-table tp-detail">
+                    <thead>
+                      <tr class="tp-grp">
+                        <th colspan="3"></th><th colspan="4">MPD</th><th colspan="4">ATG</th><th colspan="2">Auto RSP</th><th></th>
+                      </tr>
+                      <tr>
+                        <th class="ctr">Rank</th><th class="tp-lvl">Territory</th><th class="num">ROs</th>
+                        <th class="num">Onboarded</th><th class="num">Online</th><th class="num">Offline</th><th class="num">Uptime</th>
+                        <th class="num">Onboarded</th><th class="num">Online</th><th class="num">Offline</th><th class="num">Uptime</th>
+                        <th class="num">ROs</th><th class="num">%</th>
+                        <th class="num">Equipment Uptime</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tp-eq-body"></tbody>
+                    <tfoot id="tp-eq-foot"></tfoot>
+                  </table>
+                </div>
+              </div>
+
+              <div class="tp-panel">
+                <div class="tp-panel-head">
+                  <div>
+                    <h3>2-Slot Uptime Details</h3>
+                    <div class="tp-sub">2-slot = average of row-level online % (Avg RO Online% when available, else mean of MPD and ATG 2-slot)</div>
+                  </div>
+                </div>
+                <div class="tp-tablewrap">
+                  <table class="tp-table tp-detail">
+                    <thead>
+                      <tr>
+                        <th class="ctr">Rank</th><th class="tp-lvl">Territory</th><th class="num">ROs</th>
+                        <th class="num">MPD 2-Slot</th><th class="num">ATG 2-Slot</th><th class="num">2-Slot Uptime</th>
+                        <th class="num">Fully Online</th><th class="num">Partial</th><th class="num">Offline</th><th class="num">Fully Online %</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tp-two-body"></tbody>
+                    <tfoot id="tp-two-foot"></tfoot>
+                  </table>
+                </div>
+              </div>
+              <p class="tp-note">Colour bands: <span class="tp-pct ok">≥ 95%</span> <span class="tp-pct warn">85–95%</span> <span class="tp-pct bad">&lt; 85%</span>. Equal uptime shares a rank; ties are ordered by the other uptime metric.</p>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB: PERFORMANCE TREND -->
         <div class="tab-panel" id="tab-performance-trend">
           <!-- Yesterday vs Today Comparison Grid -->
@@ -2068,6 +2208,10 @@
         if (window.renderDayEndMIS) window.renderDayEndMIS('open');
       }
 
+      if (targetTabId === 'tab-territory-performance' && window.TerritoryPerformance) {
+        window.TerritoryPerformance.render();
+      }
+
       if (targetTabId === 'tab-performance-trend' && window.loadUploadHistory) {
         window.loadUploadHistory();
       }
@@ -2263,6 +2407,7 @@
   <script src="whatsapp_alerts.js"></script>
   <script src="tank_stock.js"></script>
   <script src="day_end_mis.js"></script>
+  <script src="territory_performance.js"></script>
   <script src="share_kit.js"></script>
 </body>
 </html>

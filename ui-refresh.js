@@ -20,6 +20,7 @@
     'tab-eo-summary':        { title: 'TE',                accent: 'Summary',   sub: 'Uptime by Territory Engineer' },
     'tab-so-summary':        { title: 'SO',                accent: 'Summary',   sub: 'Uptime by Sales Officer' },
     'tab-day-end-mis':       { title: 'Day End',           accent: 'MIS Exporter', sub: 'Build, compare and export the day-end automation MIS (Excel, WhatsApp, PDF)' },
+    'tab-territory-performance': { title: 'Territory', accent: 'Performance', sub: 'MPD, ATG, Auto RSP, equipment and 2-slot uptime ranked territory-wise' },
     'tab-ro-explorer':       { title: 'RO',                accent: 'Explorer',  sub: 'Search and inspect any retail outlet' },
     'tab-mapping':           { title: 'Mappings',          accent: 'Database',  sub: 'TE / SO / sales-area mapping used across the dashboard' }
   };
