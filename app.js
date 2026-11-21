@@ -4048,7 +4048,12 @@ window.setupMonitoringListeners = function() {
 window.__sheetSync = { fp: null, at: 0, busy: null, tankFound: false };
 
 function resolveSheetExportUrl() {
-  const configuredUrl = localStorage.getItem('bpcl_google_sheet_url') || 'https://docs.google.com/spreadsheets/d/14KDPhrCgKmZzLKNzSdS6YtPIeXdDtlXPbbPWMVxFA5I/export?format=xlsx';
+  const OFFICIAL_URL = 'https://docs.google.com/spreadsheets/d/14KDPhrCgKmZzLKNzSdS6YtPIeXdDtlXPbbPWMVxFA5I/export?format=xlsx';
+  let configuredUrl = localStorage.getItem('bpcl_google_sheet_url');
+  if (!configuredUrl || configuredUrl.includes('2PACX-1vS3EE_SNele4ucfWLc38wDtMaSB18jj2OgCw')) {
+    configuredUrl = OFFICIAL_URL;
+    localStorage.setItem('bpcl_google_sheet_url', OFFICIAL_URL);
+  }
   let targetUrl = configuredUrl.trim();
   if (targetUrl.includes('docs.google.com/spreadsheets') && !targetUrl.includes('/export') && !targetUrl.includes('/pub')) {
     if (targetUrl.includes('/edit')) {
