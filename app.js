@@ -414,7 +414,8 @@ function setupEventListeners() {
     exportToCSV(eoSummary, 'TE_Summary.csv', false);
   });
   document.getElementById('export-so-btn').addEventListener('click', () => {
-    exportToCSV(soSummary, 'SO_Summary.csv', false);
+    const rows = (window.territorySummary || []).concat(window.territorySummaryTotal && window.territorySummary.length > 1 ? [window.territorySummaryTotal] : []);
+    exportToCSV(rows, 'Territory_Summary.csv', false);
   });
   const exportVendorBtn = document.getElementById('export-vendor-btn');
   if (exportVendorBtn) {
@@ -549,6 +550,7 @@ function recalculateAndRefresh() {
       window.renderTerritoryPerformance();
     }
     if (window.DataFreshness) window.DataFreshness.render();
+    if (typeof window.renderDashboardExtraCharts === 'function') window.renderDashboardExtraCharts();
   }
 }
 
@@ -1374,6 +1376,8 @@ function updateOverviewCharts() {
           const value = dataset.data[index];
           if (value === null || value === undefined || Number(value) === 0) return;
           const label = fmt(value);
+          const bg = String(Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor[index] : dataset.backgroundColor || '').toLowerCase();
+          const inside = /^#(fcb813|f07a5a)$/.test(bg) ? '#1b365d' : '#ffffff';
           ctx.save();
           ctx.font = '700 11px Inter, system-ui, sans-serif';
           const textW = ctx.measureText(label).width;
@@ -1382,7 +1386,7 @@ function updateOverviewCharts() {
           if (horizontal) {
             const barLen = Math.abs(bar.x - bar.base);
             if (barLen >= textW + 14) {
-              ctx.fillStyle = '#ffffff';
+              ctx.fillStyle = inside;
               ctx.textAlign = 'right';
               ctx.fillText(label, bar.x - 7, bar.y);
             } else {
@@ -1395,7 +1399,7 @@ function updateOverviewCharts() {
             ctx.translate(bar.x, bar.y);
             ctx.rotate(-Math.PI / 2);
             if (barH >= textW + 12) {
-              ctx.fillStyle = '#ffffff';
+              ctx.fillStyle = inside;
               ctx.textAlign = 'right';
               ctx.fillText(label, -6, 0);
             } else {
@@ -1451,7 +1455,7 @@ function updateOverviewCharts() {
         labels: ['Online', 'Partial', 'Offline'],
         datasets: [{
           data: [overallMetrics.fullyOnline, overallMetrics.partiallyOnline, overallMetrics.offline],
-          backgroundColor: ['#138a4a', '#e9a100', '#c8322b'],
+          backgroundColor: ['#138a4a', '#fcb813', '#c8322b'],   // online (green) · partial (yellow) · offline (red)
           borderWidth: 2,
           borderColor: '#ffffff'
         }]
@@ -1506,7 +1510,7 @@ function updateOverviewCharts() {
           {
             label: 'Uptime %',
             data: salesAreaUptimeVals,
-            backgroundColor: '#1a6bc8',
+            backgroundColor: '#1b365d',   // deep navy
             borderRadius: 4,
             barThickness: 18
           }
@@ -1562,8 +1566,8 @@ function updateOverviewCharts() {
           {
             label: 'MPD Uptime',
             data: mpdUptimeVals,
-            backgroundColor: '#003f87',
-            borderRadius: 3,
+            backgroundColor: '#1b365d',   // deep navy
+            borderRadius: 6,
             maxBarThickness: 14,
             categoryPercentage: 0.92,
             barPercentage: 0.62
@@ -1571,8 +1575,8 @@ function updateOverviewCharts() {
           {
             label: 'Tank Uptime',
             data: tankUptimeVals,
-            backgroundColor: '#0f8b82',
-            borderRadius: 3,
+            backgroundColor: '#f07a5a',   // coral
+            borderRadius: 6,
             maxBarThickness: 14,
             categoryPercentage: 0.92,
             barPercentage: 0.62
@@ -1630,7 +1634,7 @@ function updateOverviewCharts() {
         datasets: [{
           label: 'Uptime %',
           data: eoVals,
-          backgroundColor: '#1a6bc8',
+          backgroundColor: '#1b365d',   // deep navy
           borderRadius: 4,
           barThickness: 18
         }]
@@ -1680,7 +1684,7 @@ function updateOverviewCharts() {
         datasets: [{
           label: 'Uptime %',
           data: soVals,
-          backgroundColor: '#1a6bc8',
+          backgroundColor: '#1b365d',   // deep navy
           borderRadius: 4,
           barThickness: 10
         }]
@@ -1755,12 +1759,52 @@ function renderEOTable() {
 }
 
 // Render SO Table
+// Territory Summary (menu formerly "SO Summary"): one row per territory.
+// Compares every territory in the data — the global Territory filter only
+// highlights the chosen one — ranked by AVG uptime, with an all-territory total.
+window.territorySummary = [];
+window.territorySummaryTotal = null;
+function computeTerritorySummary() {
+  const src = (Array.isArray(window.__unscopedROs) && window.__unscopedROs.length) ? window.__unscopedROs : calculatedROs;
+  const map = {};
+  const total = createAggregateObj('All Territories');
+  src.forEach(ro => {
+    const k = String(ro.territory || '').trim() || 'Unmapped';
+    if (!map[k]) map[k] = createAggregateObj(k);
+    updateAggregateObj(map[k], ro);
+    updateAggregateObj(total, ro);
+  });
+  const list = Object.values(map).map(finalizeAggregate)
+    .sort((a, b) => (a.key === 'Unmapped') - (b.key === 'Unmapped') || b.uptime - a.uptime || b.totalROs - a.totalROs || a.key.localeCompare(b.key));
+  list.forEach((r, i) => { r.rank = i + 1; });
+  window.territorySummary = list;
+  window.territorySummaryTotal = finalizeAggregate(total);
+  return list;
+}
 function renderSOTable() {
   const tbody = document.getElementById('so-tbody');
+  if (!tbody) return;
   tbody.innerHTML = '';
-  soSummary.forEach(row => {
-    tbody.appendChild(createSummaryRowHtml(row, row.key));
+  const list = computeTerritorySummary();
+  const sel = window.GlobalScope ? GlobalScope.get() : [];
+  list.forEach(row => {
+    const tr = createSummaryRowHtml(row, row.key);
+    const td = document.createElement('td');
+    td.className = 'ts-rank';
+    td.textContent = row.rank;
+    tr.insertBefore(td, tr.firstChild);
+    if (sel.includes(row.key)) tr.classList.add('ts-selected');
+    tbody.appendChild(tr);
   });
+  if (list.length > 1) {
+    const tr = createSummaryRowHtml(window.territorySummaryTotal, 'All Territories', true);
+    tr.insertBefore(document.createElement('td'), tr.firstChild);
+    tbody.appendChild(tr);
+  }
+  const note = document.getElementById('territory-summary-note');
+  if (note) note.textContent = list.length
+    ? `${list.length} territor${list.length === 1 ? 'y' : 'ies'} · ranked by AVG uptime` + (sel.length ? ' · your territory highlighted' : '')
+    : 'No data loaded yet';
 }
 
 // Render Vendor Table

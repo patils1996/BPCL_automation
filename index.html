@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="territory_performance.css">
   <link rel="stylesheet" href="filter_drawer.css">
   <link rel="stylesheet" href="data_freshness.css">
+  <link rel="stylesheet" href="dashboard_extra_charts.css">
   
   <!-- Favicon & PWA Icons with Official BPCL Automation Logo -->
   <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -99,8 +100,8 @@
         <span>TE Summary</span>
       </div>
       <div class="menu-item" id="sidebar-so-summary-btn" data-tab="tab-so-summary" onclick="switchSidebarTab('tab-so-summary')">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        <span>SO Summary</span>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-6.5 8-13a8 8 0 0 0-16 0c0 6.5 8 13 8 13z"></path><circle cx="12" cy="9" r="2.6"></circle></svg>
+        <span>Territory Summary</span>
       </div>
 
       <!-- Category 4: REPORTS -->
@@ -355,7 +356,7 @@
               </div>
             </div>
 
-            <!-- Main Layout: 2x2 Grid (Left) + 4 Stacked Cards (Right) -->
+            <!-- Main Layout: chart grid (left) + territory uptime chart (right side) -->
             <div class="overview-body-container">
 
               <!-- Left Section: 2x2 Grid of 4 Cards -->
@@ -453,6 +454,26 @@
                 </div>
 
               </div>
+
+              <!-- Right side: one tall chart — territory equipment-uptime ranking -->
+              <aside class="panel-card dx-side" aria-labelledby="dx-top-title">
+                <div class="panel-card-header">
+                  <div class="panel-card-header-left">
+                    <div class="panel-icon-wrap icon-blue">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8"></path><path d="M12 17v4"></path><path d="M7 4h10v5a5 5 0 0 1-10 0z"></path><path d="M17 5h3v2a3 3 0 0 1-3 3"></path><path d="M7 5H4v2a3 3 0 0 0 3 3"></path></svg>
+                    </div>
+                    <div>
+                      <div class="panel-card-title" id="dx-top-title">Top 10 Territories · Equipment Uptime</div>
+                      <div class="panel-card-subtitle" id="dx-top-sub">MPD + ATG ONLINE ÷ ONBOARDED</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dx-side-chart">
+                  <canvas id="dx-top-territory-chart" role="img" aria-label="Territories ranked by equipment uptime"></canvas>
+                  <div class="dx-empty" id="dx-top-empty" hidden>No uptime data loaded yet.</div>
+                </div>
+                <button type="button" class="dx-link dx-side-link" onclick="switchSidebarTab('tab-territory-performance')">Full Territory Performance report →</button>
+              </aside>
 
 
             </div>
@@ -1468,7 +1489,10 @@
         <div class="tab-panel" id="tab-so-summary">
           <div class="table-card">
             <div class="table-card-header">
-              <h3>SO Wise Uptime Summary</h3>
+              <div>
+                <h3>Territory Wise Uptime Summary</h3>
+                <div class="ts-note" id="territory-summary-note"></div>
+              </div>
               <button class="btn-secondary" id="export-so-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Export CSV
@@ -1478,7 +1502,8 @@
               <table class="data-table" id="so-table">
                 <thead>
                   <tr>
-                    <th>SO Name</th>
+                    <th>#</th>
+                    <th>Territory</th>
                     <th>Total ROs</th>
                     <th>Fully Online</th>
                     <th>Partially Online</th>
@@ -2412,6 +2437,7 @@
   <script src="day_end_mis.js"></script>
   <script src="territory_performance.js"></script>
   <script src="filter_drawer.js"></script>
+  <script src="dashboard_extra_charts.js"></script>
   <script src="share_kit.js"></script>
 </body>
 </html>

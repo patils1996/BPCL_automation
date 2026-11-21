@@ -178,6 +178,7 @@
 
       source = 'files';
       renderDashboard();
+      notifyDashboard();
       if ($('dataStatus')) {
         $('dataStatus').innerHTML = statusLine('Excel files');
       }
@@ -956,6 +957,8 @@
     if (t.hourly) data.hourly = t.hourly;
     if (t.onboarded) data.onboarded = t.onboarded;
     source = 'sheet';
+    allRO = groupByRO();
+    notifyDashboard();
     // Heavy redraw only when the page is on screen; otherwise when it is opened
     if (isVisible()) renderDashboard(); else renderPending = true;
     if ($('dataStatus')) $('dataStatus').innerHTML = statusLine('Google Sheet');
@@ -974,6 +977,7 @@
     lookupTimer = setTimeout(() => {
       allRO = groupByRO();
       if (isVisible()) renderDashboard(); else renderPending = true;
+      notifyDashboard();
     }, 50);
   }
   function markLoading() {
@@ -1032,7 +1036,42 @@
     drawROTable();
   }
 
-  window.TankStock = { ingestSheets, markSynced, markLoading, markSyncError, syncFromSheet, refreshLookup, onScopeChange };
+  /**
+   * Lowest-stock outlets for the Dashboard chart.
+   * Each outlet is ranked by its weakest product (stock ÷ on-boarded tankage
+   * from the "Last updated stock" sheet), so an outlet with HSD nearly dry is
+   * flagged even if its petrol tanks are full. Follows the global Territory filter.
+   */
+  function lowStockSites(n) {
+    if (!data.latest.length) return { ready: false, rows: [] };
+    if (!allRO.length) allRO = groupByRO();
+    const out = [];
+    allRO.forEach(r => {
+      if (window.GlobalScope && !GlobalScope.match(r.territory)) return;
+      const prod = {};
+      (r.latest || []).forEach(rec => {
+        const p = key(rec['Product Name'] || rec._product || '') || 'PRODUCT';
+        const stock = num(rec.Stock);
+        const cap = num(rec['On-boarded Tankage'] ?? rec['On-Boarded Tankage'] ?? rec['On-Boarded Tankage (KL)']);
+        if (stock == null || !cap) return;
+        prod[p] = prod[p] || { stock: 0, cap: 0 };
+        prod[p].stock += stock; prod[p].cap += cap;
+      });
+      let worst = null;
+      Object.keys(prod).forEach(p => {
+        const pct = Math.max(0, prod[p].stock / prod[p].cap * 100);
+        if (!worst || pct < worst.pct) worst = { product: p, pct, stock: prod[p].stock, cap: prod[p].cap };
+      });
+      if (worst) out.push({ id: r.id, name: r.name, area: r.area, territory: r.territory, product: worst.product, pct: worst.pct, stock: worst.stock, cap: worst.cap });
+    });
+    out.sort((a, b) => a.pct - b.pct || a.stock - b.stock);
+    return { ready: true, rows: out.slice(0, n || 10), total: out.length };
+  }
+
+  // Dashboard "low stock" chart follows the tank data
+  function notifyDashboard() { if (typeof window.renderLowStockChart === 'function') setTimeout(window.renderLowStockChart, 0); }
+
+  window.TankStock = { ingestSheets, markSynced, markLoading, markSyncError, syncFromSheet, refreshLookup, onScopeChange, lowStockSites };
 
   window.initTankStockDashboard = function() {
     // Events and Drive auto-connect run once; re-opening the menu only refreshes the view

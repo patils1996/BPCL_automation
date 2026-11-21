@@ -18,7 +18,7 @@
     'tab-sales-area':        { title: 'Sales Area',        accent: 'Summary',   sub: 'Outlet and equipment uptime by sales area' },
     'tab-vendor-summary':    { title: 'Vendor',            accent: 'Summary',   sub: 'Outlet and equipment uptime by automation vendor' },
     'tab-eo-summary':        { title: 'TE',                accent: 'Summary',   sub: 'Uptime by Territory Engineer' },
-    'tab-so-summary':        { title: 'SO',                accent: 'Summary',   sub: 'Uptime by Sales Officer' },
+    'tab-so-summary':        { title: 'Territory',         accent: 'Summary',   sub: 'Outlet and equipment uptime by territory' },
     'tab-day-end-mis':       { title: 'Day End',           accent: 'MIS Exporter', sub: 'Build, compare and export the day-end automation MIS (Excel, WhatsApp, PDF)' },
     'tab-territory-performance': { title: 'Territory', accent: 'Performance', sub: 'MPD, ATG, Auto RSP, equipment and 2-slot uptime ranked territory-wise' },
     'tab-ro-explorer':       { title: 'RO',                accent: 'Explorer',  sub: 'Search and inspect any retail outlet' },

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bpcl-dashboard-v53';
+const CACHE_NAME = 'bpcl-dashboard-v59';
 const ASSETS = [
   './',
   './index.html',
@@ -14,6 +14,8 @@ const ASSETS = [
   './filter_drawer.css',
   './data_freshness.js',
   './data_freshness.css',
+  './dashboard_extra_charts.js',
+  './dashboard_extra_charts.css',
   './share_kit.js',
   './share_kit.css',
   './tank_stock_ui.css',

@@ -157,7 +157,7 @@
     'tab-sales-area': function () { return summaryArrayText(window.salesAreaSummary, 'Sales area'); },
     'tab-vendor-summary': function () { return summaryArrayText(window.vendorSummary, 'Vendor'); },
     'tab-eo-summary': function () { return summaryArrayText(window.eoSummary, 'TE'); },
-    'tab-so-summary': function () { return summaryArrayText(window.soSummary, 'SO'); },
+    'tab-so-summary': function () { return summaryArrayText(window.territorySummary, 'Territory'); },
     'tab-day-monitoring': function () {
       var l = window.dayMonitoringFilteredList || [];
       var off = l.filter(function (r) { return r.status === 'Offline'; });
