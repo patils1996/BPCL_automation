@@ -273,27 +273,42 @@
   #tab-tank-stock .tankgrid { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Tablet & phone table view: keep RO ID + name pinned, header on brand colours */
+/* Tablet & phone table view: unfreeze left columns so users can smoothly scroll horizontally */
 @media (max-width: 899px) {
+  #tab-tank-stock .tablewrap,
+  .tank-stock-standalone .tablewrap {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+  }
   #tab-tank-stock .ro-summary-table th { background: var(--navy) !important; color: #fff !important; }
-  #tab-tank-stock table.ro-summary-table { width: 980px !important; min-width: 980px !important; }
+  #tab-tank-stock table.ro-summary-table,
+  .tank-stock-standalone table.ro-summary-table { width: 880px !important; min-width: 880px !important; table-layout: auto !important; }
   #tab-tank-stock .ro-summary-table th:nth-child(1),
-  #tab-tank-stock .ro-summary-table td:nth-child(1) { width: 84px !important; min-width: 84px; max-width: 84px; left: 0; }
+  #tab-tank-stock .ro-summary-table td:nth-child(1),
   #tab-tank-stock .ro-summary-table th:nth-child(2),
-  #tab-tank-stock .ro-summary-table td:nth-child(2) { width: 190px !important; min-width: 190px; max-width: 190px; left: 84px; }
-  #tab-tank-stock .ro-summary-table th:nth-child(3), #tab-tank-stock .ro-summary-table td:nth-child(3) { width: 170px !important; }
-  #tab-tank-stock .ro-summary-table th:nth-child(4), #tab-tank-stock .ro-summary-table td:nth-child(4) { width: 96px !important; }
+  #tab-tank-stock .ro-summary-table td:nth-child(2),
+  .tank-stock-standalone .ro-summary-table th:nth-child(1),
+  .tank-stock-standalone .ro-summary-table td:nth-child(1),
+  .tank-stock-standalone .ro-summary-table th:nth-child(2),
+  .tank-stock-standalone .ro-summary-table td:nth-child(2) {
+    position: static !important;
+    left: auto !important;
+    z-index: auto !important;
+    box-shadow: none !important;
+  }
+  #tab-tank-stock .ro-summary-table th:nth-child(1),
+  #tab-tank-stock .ro-summary-table td:nth-child(1) { width: 75px !important; min-width: 75px; }
+  #tab-tank-stock .ro-summary-table th:nth-child(2),
+  #tab-tank-stock .ro-summary-table td:nth-child(2) { width: 190px !important; min-width: 190px; white-space: normal !important; }
+  #tab-tank-stock .ro-summary-table th:nth-child(3), #tab-tank-stock .ro-summary-table td:nth-child(3) { width: 150px !important; }
+  #tab-tank-stock .ro-summary-table th:nth-child(4), #tab-tank-stock .ro-summary-table td:nth-child(4) { width: 90px !important; }
   #tab-tank-stock .ro-summary-table th:nth-child(5), #tab-tank-stock .ro-summary-table td:nth-child(5),
   #tab-tank-stock .ro-summary-table th:nth-child(6), #tab-tank-stock .ro-summary-table td:nth-child(6),
-  #tab-tank-stock .ro-summary-table th:nth-child(7), #tab-tank-stock .ro-summary-table td:nth-child(7) { width: 96px !important; }
-  #tab-tank-stock .ro-summary-table th:nth-child(8), #tab-tank-stock .ro-summary-table td:nth-child(8) { width: 64px !important; }
-  #tab-tank-stock .ro-summary-table th:nth-child(9), #tab-tank-stock .ro-summary-table td:nth-child(9) { width: 84px !important; }
-  #tab-tank-stock .ro-summary-table th:nth-child(1),
-  #tab-tank-stock .ro-summary-table th:nth-child(2) { z-index: 4; }
-  #tab-tank-stock .ro-summary-table tbody td:nth-child(1),
-  #tab-tank-stock .ro-summary-table tbody td:nth-child(2) { background: #fff; z-index: 1; }
-  #tab-tank-stock .ro-summary-table tbody tr:nth-child(even) td:nth-child(1),
-  #tab-tank-stock .ro-summary-table tbody tr:nth-child(even) td:nth-child(2) { background: #f7f9fc; }
+  #tab-tank-stock .ro-summary-table th:nth-child(7), #tab-tank-stock .ro-summary-table td:nth-child(7) { width: 85px !important; }
+  #tab-tank-stock .ro-summary-table th:nth-child(8), #tab-tank-stock .ro-summary-table td:nth-child(8) { width: 60px !important; }
+  #tab-tank-stock .ro-summary-table th:nth-child(9), #tab-tank-stock .ro-summary-table td:nth-child(9) { width: 65px !important; }
   #tab-tank-stock .ts-hero .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {

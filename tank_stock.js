@@ -333,7 +333,7 @@
         // Territory / sales area come from the uptime sheet when the RO is there,
         // so the territory filter matches the Dashboard and all other menus.
         const up = window.__roLookup && window.__roLookup.get(String(id).replace(/\D/g, '').replace(/^0+/, ''));
-        m.set(id, { id, name: row['Retail Outlet'] || row.RO_Name || 'Unknown RO', territory: (up && up.territory) || row.Territory || '', area: (up && up.area) || row['Sales Area'] || row.Salesarea || '', vendor: row['RA Vendor'] || row.RA_Vendor || '', state: row.State || '', ebms: 0, hsd: 0, total: 0, tanks: [], latest: [], online: 0, offline: 0 });
+        m.set(id, { id, name: row['Retail Outlet'] || row.RO_Name || 'Unknown RO', territory: (up && up.territory) || row.Territory || '', area: (up && up.area) || row['Sales Area'] || row.Salesarea || '', vendor: row['RA Vendor'] || row.RA_Vendor || '', state: row.State || '', ebms: 0, hsd: 0, total: 0, capacity: 0, ebmsCap: 0, hsdCap: 0, tanks: [], latest: [], online: 0, offline: 0 });
       }
       return m.get(id);
     };
@@ -344,6 +344,10 @@
       if (!x.area && (r.Salesarea || r['Sales Area'] || r.sales_area)) x.area = r.Salesarea || r['Sales Area'] || r.sales_area;
       if (!x.vendor && (r.RA_Vendor || r['RA Vendor'] || r.vendor)) x.vendor = r.RA_Vendor || r['RA Vendor'] || r.vendor;
       if (!x.state && (r.State || r.state)) x.state = r.State || r.state;
+      let cap = num(r['On-Boarded Tankage (KL)'] ?? r['On-boarded Tankage']) || 0;
+      let pName = key(r.Product_Name || r['Product Name'] || '');
+      if (pName.includes('EBMS')) x.ebmsCap = Math.max(x.ebmsCap, cap);
+      else if (pName.includes('HSD')) x.hsdCap = Math.max(x.hsdCap, cap);
       x.tanks.push(r);
       let st = key(r.Status);
       if (st === 'ONLINE') x.online++;
@@ -359,9 +363,11 @@
       x.latest.push(r);
       let p = key(r['Product Name']);
       let stock = num(r.Stock) || 0;
-      if (p.includes('EBMS')) x.ebms += stock;
-      else if (p === 'HSD') x.hsd += stock;
+      let cap = num(r['On-boarded Tankage'] ?? r['On-Boarded Tankage'] ?? r['On-Boarded Tankage (KL)']) || 0;
+      if (p.includes('EBMS')) { x.ebms += stock; x.ebmsCap += cap; }
+      else if (p === 'HSD') { x.hsd += stock; x.hsdCap += cap; }
       x.total += stock;
+      x.capacity += cap;
     });
     data.hourly.forEach(r => {
       if (!r._ro) return;
@@ -370,6 +376,10 @@
       if (!x.area && (r['Sales Area'] || r.Salesarea || r.sales_area)) x.area = r['Sales Area'] || r.Salesarea || r.sales_area;
       if (!x.vendor && (r['RA Vendor'] || r.RA_Vendor || r.vendor)) x.vendor = r['RA Vendor'] || r.RA_Vendor || r.vendor;
       if (!x.state && (r.State || r.state)) x.state = r.State || r.state;
+      let cap = num(r['On-Boarded Tankage (KL)'] ?? r['On-boarded Tankage']) || 0;
+      let pName = key(r._product || r['Product Name'] || '');
+      if (pName.includes('EBMS')) x.ebmsCap = Math.max(x.ebmsCap, cap);
+      else if (pName.includes('HSD')) x.hsdCap = Math.max(x.hsdCap, cap);
       if (!x.tanks.some(t => String(t._tank || t['Local tank id'] || '').replace(/\.0+$/, '') === String(r._tank || '').replace(/\.0+$/, ''))) {
         x.tanks.push({
           ROID: r._ro,
@@ -475,24 +485,55 @@
     drawROTable();
   }
 
-  let currentViewMode = (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'cards' : 'table';
-
-  function setViewMode(mode) {
-    currentViewMode = mode;
-    const tab = $('tab-tank-stock') || document.querySelector('.tank-stock-standalone') || document.body;
-    const cardsBtn = $('viewCardsBtn');
-    const tableBtn = $('viewTableBtn');
-    if (mode === 'cards') {
-      tab.classList.remove('mode-table');
-      tab.classList.add('mode-cards');
-      if (cardsBtn) cardsBtn.classList.add('active');
-      if (tableBtn) tableBtn.classList.remove('active');
-    } else {
-      tab.classList.remove('mode-cards');
-      tab.classList.add('mode-table');
-      if (tableBtn) tableBtn.classList.add('active');
-      if (cardsBtn) cardsBtn.classList.remove('active');
+  function isLowStockSite(r) {
+    if (!r) return false;
+    // 1. Check latest product records for explicit stock percentage or low ratio
+    if (r.latest && r.latest.length) {
+      for (let i = 0; i < r.latest.length; i++) {
+        let rec = r.latest[i];
+        let sPct = num(rec['Stock %'] ?? rec.Stock_Pct);
+        if (sPct != null) {
+          if (sPct <= 1.0 && sPct > 0) sPct *= 100;
+          if (sPct <= 10.0) return true;
+        }
+        let cap = num(rec['On-boarded Tankage'] ?? rec['On-Boarded Tankage (KL)']);
+        let stk = num(rec.Stock);
+        if (cap != null && stk != null && cap > 0 && (stk / cap * 100) <= 10.0) return true;
+      }
     }
+    // 2. Check total or individual product capacity vs stock
+    let totalCap = r.capacity || (r.ebmsCap + r.hsdCap);
+    if (totalCap > 0 && (r.total / totalCap * 100) <= 10.0) return true;
+    if (r.ebmsCap > 0 && (r.ebms / r.ebmsCap * 100) <= 10.0) return true;
+    if (r.hsdCap > 0 && (r.hsd / r.hsdCap * 100) <= 10.0) return true;
+
+    // 3. Check latest hourly dip readings if available
+    let roHours = data.hourly ? data.hourly.filter(h => h._ro === r.id) : [];
+    for (let i = 0; i < roHours.length; i++) {
+      let hr = roHours[i];
+      let hours = ['11 PM', '10 PM', '9 PM', '8 PM', '7 PM', '6 PM', '5 PM', '4 PM', '3 PM', '2 PM', '1 PM', '12 PM', '11 AM', '10 AM', '9 AM', '8 AM', '7 AM', '6 AM', '5 AM', '4 AM', '3 AM', '2 AM', '1 AM', '12 AM'];
+      for (let j = 0; j < hours.length; j++) {
+        let v = num(hr[hours[j] + ' %'] ?? hr[hours[j]]);
+        if (v != null) {
+          if (v <= 1.0 && v > 0) v *= 100;
+          if (v <= 10.0) return true;
+          break; // latest reported hour for this tank
+        }
+      }
+    }
+    return false;
+  }
+
+  let filterLowStockOnly = false;
+
+  function setLowStockFilter(onlyLow) {
+    filterLowStockOnly = !!onlyLow;
+    const allBtn = $('viewAllSitesBtn') || $('viewTableBtn');
+    const lowBtn = $('viewLowStockBtn') || $('viewCardsBtn');
+    if (allBtn) allBtn.classList.toggle('active', !filterLowStockOnly);
+    if (lowBtn) lowBtn.classList.toggle('active', filterLowStockOnly);
+    window._tsPage = 1;
+    drawROTable();
   }
 
   function drawROTable() {
@@ -503,6 +544,11 @@
     const q = key(searchEl.value), territory = pick(terrEl), area = pick(areaEl), vendor = pick(vendEl), state = pick(stateEl);
     let rows = allRO.filter(r => (!q || r.id.includes(q) || key(r.name).includes(q)) && (territory.length ? inSet(territory, r.territory) : (!window.GlobalScope || GlobalScope.match(r.territory))) && inSet(area, r.area) && inSet(vendor, r.vendor) && inSet(state, r.state));
     
+    // Filter to Low Stock (≤ 10%) sites if active
+    if (filterLowStockOnly) {
+      rows = rows.filter(isLowStockSite);
+    }
+
     // Dynamically update KPIs matching current filter selection
     updateKPIs(rows);
 
@@ -515,14 +561,17 @@
     const startIdx = (page - 1) * TS_PAGE_SIZE;
     const pagedRows = rows.slice(startIdx, startIdx + TS_PAGE_SIZE);
 
-    if ($('rowCount')) $('rowCount').textContent = `${rows.length.toLocaleString()} outlets (Showing ${rows.length ? startIdx + 1 : 0}–${Math.min(startIdx + TS_PAGE_SIZE, rows.length)})`;
+    const countLabel = filterLowStockOnly ? 'low stock outlets (≤ 10%)' : 'outlets';
+    if ($('rowCount')) $('rowCount').textContent = `${rows.length.toLocaleString()} ${countLabel} (Showing ${rows.length ? startIdx + 1 : 0}–${Math.min(startIdx + TS_PAGE_SIZE, rows.length)})`;
 
     const tbody = $('roTable');
     if (tbody) {
       tbody.innerHTML = pagedRows.map(r => {
         let st = r.offline === 0 && r.online > 0 ? 'ONLINE' : (r.online === 0 ? 'OFFLINE' : 'PARTIAL');
-        return `<tr onclick="openRO('${r.id}')"><td class="ts-id" title="${esc(r.id)}">${esc(r.id)}</td><td class="ro-name" title="${esc(r.name)}">${esc(r.name)}</td><td title="${esc(r.territory)} / ${esc(r.area)}">${esc(r.territory)} <span class="muted">/ ${esc(r.area)}</span></td><td title="${esc(r.vendor)}">${esc(r.vendor)}</td><td class="num product-ebms">${fmt(r.ebms, 2)}</td><td class="num product-hsd">${fmt(r.hsd, 2)}</td><td class="num"><b>${fmt(r.total, 2)}</b></td><td class="num"><span class="ts-tanks">${r.online}/${r.tanks.length}</span></td><td><span class="pill ${st === 'OFFLINE' ? 'off' : st === 'ONLINE' ? '' : 'partial'}">${st === 'ONLINE' ? 'Online' : st === 'OFFLINE' ? 'Offline' : 'Partial'}</span></td></tr>`;
-      }).join('') || '<tr><td colspan="9" class="empty">No matching retail outlets found.</td></tr>';
+        let isLow = isLowStockSite(r);
+        let lowBadge = isLow ? ` <span class="pill off" style="padding:1px 6px; font-size:10px; margin-left:4px; vertical-align:middle;" title="Stock is 10% or below">Low Stock</span>` : '';
+        return `<tr onclick="openRO('${r.id}')"><td class="ts-id" title="${esc(r.id)}">${esc(r.id)}</td><td class="ro-name" title="${esc(r.name)}">${esc(r.name)}${lowBadge}</td><td title="${esc(r.territory)} / ${esc(r.area)}">${esc(r.territory)} <span class="muted">/ ${esc(r.area)}</span></td><td title="${esc(r.vendor)}">${esc(r.vendor)}</td><td class="num product-ebms">${fmt(r.ebms, 2)}</td><td class="num product-hsd">${fmt(r.hsd, 2)}</td><td class="num"><b>${fmt(r.total, 2)}</b></td><td class="num"><span class="ts-tanks">${r.online}/${r.tanks.length}</span></td><td><span class="pill ${st === 'OFFLINE' ? 'off' : st === 'ONLINE' ? '' : 'partial'}">${st === 'ONLINE' ? 'Online' : st === 'OFFLINE' ? 'Offline' : 'Partial'}</span></td></tr>`;
+      }).join('') || `<tr><td colspan="9" class="empty">${filterLowStockOnly ? 'No outlets with stock ≤ 10% found in this selection.' : 'No matching retail outlets found.'}</td></tr>`;
     }
 
     const cardWrap = $('roCardsWrap');
@@ -832,17 +881,14 @@
       };
     }
 
-    const viewCardsBtn = $('viewCardsBtn');
-    const viewTableBtn = $('viewTableBtn');
-    if (viewCardsBtn) viewCardsBtn.onclick = () => {
-      sessionStorage.setItem('bpcl_tank_view_manual', '1');
-      setViewMode('cards');
-    };
-    if (viewTableBtn) viewTableBtn.onclick = () => {
-      sessionStorage.setItem('bpcl_tank_view_manual', '1');
-      setViewMode('table');
-    };
-    setViewMode((typeof window !== 'undefined' && window.innerWidth <= 768) ? 'cards' : 'table');
+    const allBtn = $('viewAllSitesBtn') || $('viewTableBtn');
+    const lowBtn = $('viewLowStockBtn') || $('viewCardsBtn');
+    if (allBtn) {
+      allBtn.onclick = () => setLowStockFilter(false);
+    }
+    if (lowBtn) {
+      lowBtn.onclick = () => setLowStockFilter(true);
+    }
 
     const terrEl = $('territory');
     if (terrEl) {
@@ -972,7 +1018,6 @@
   window.initTankStockDashboard = function() {
     // Events and Drive auto-connect run once; re-opening the menu only refreshes the view
     if (!tankInitDone) { initEvents(); return; }
-    if (!sessionStorage.getItem('bpcl_tank_view_manual')) setViewMode(window.innerWidth <= 768 ? 'cards' : 'table');
     if (renderPending) { renderPending = false; renderDashboard(); }
     else if (allRO && allRO.length) {
       const terrEl = $('territory');
