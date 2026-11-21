@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BPCL | Tank Stock Monitoring</title>
+<script src="xlsx.full.min.js"></script>
+<script>if (!window.XLSX) { document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>'); }</script>
+<style>
+:root{--blue:#168cf0;--navy:#17243a;--muted:#718096;--line:#e7edf5;--bg:#f5f8fc;--green:#19b94b;--red:#ef4444;--cyan:#13a8e8;--shadow:0 7px 20px rgba(18,35,58,.08)}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--navy)}button,input,select{font:inherit}.topbar{background:#fff;border-bottom:1px solid var(--line);padding:17px 28px;display:flex;align-items:center;justify-content:space-between;gap:15px;position:sticky;top:0;z-index:5}.brand{display:flex;align-items:center;gap:12px}.logo{width:39px;height:39px;border-radius:12px;background:#eaf4ff;color:#087bd8;display:grid;place-items:center;font-weight:900;font-size:13px}.brand h1{font-size:18px;margin:0 0 3px}.brand p{font-size:11px;color:var(--muted);margin:0}.actions{display:flex;gap:9px;flex-wrap:wrap}.btn{border:1px solid #d6dfeb;background:white;color:#24334a;padding:9px 14px;border-radius:22px;cursor:pointer;font-weight:600;font-size:12px}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn:hover{filter:brightness(.97)}main{max-width:1600px;margin:auto;padding:22px 28px 50px}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}.toolbar input,.toolbar select{background:white;border:1px solid #dfe7f0;border-radius:10px;padding:11px 13px;color:#24334a;min-width:165px;outline:none}.toolbar input{flex:1;min-width:240px}.statusline{font-size:12px;color:var(--muted);margin:0 0 15px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}.pill{border-radius:30px;padding:5px 10px;font-size:11px;font-weight:700;background:#e8f9ee;color:#16853c}.pill.off{background:#ffebeb;color:#d93434}.pill.partial{background:#fff5df;color:#a66a00}.kpis{display:grid;grid-template-columns:repeat(5,minmax(130px,1fr));gap:12px;margin-bottom:18px}.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:15px 17px;box-shadow:0 2px 8px #162d4a08}.kpi .klabel{font-size:11px;color:var(--muted);font-weight:600}.kpi .value{font-size:24px;font-weight:750;margin-top:7px;letter-spacing:-.5px}.kpi .sub{font-size:10px;color:#91a0b3;margin-top:3px}.panel{background:white;border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 8px #162d4a08;margin-bottom:18px;overflow:hidden}.panelhead{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}.panelhead h2{font-size:14px;margin:0}.panelhead small{color:var(--muted)}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:850px}th,td{text-align:left;padding:12px 15px;border-bottom:1px solid #edf1f6;font-size:12px;white-space:nowrap}.ro-summary-table{min-width:1470px;table-layout:fixed}.ro-summary-table th,.ro-summary-table td{padding:14px 22px}.ro-summary-table th:nth-child(1),.ro-summary-table td:nth-child(1){width:110px}.ro-summary-table th:nth-child(2),.ro-summary-table td:nth-child(2){width:290px}.ro-summary-table th:nth-child(3),.ro-summary-table td:nth-child(3){width:230px}.ro-summary-table th:nth-child(4),.ro-summary-table td:nth-child(4){width:160px}.ro-summary-table th:nth-child(5),.ro-summary-table td:nth-child(5),.ro-summary-table th:nth-child(6),.ro-summary-table td:nth-child(6){width:150px}.ro-summary-table th:nth-child(7),.ro-summary-table td:nth-child(7){width:160px}.ro-summary-table th:nth-child(8),.ro-summary-table td:nth-child(8){width:90px}.ro-summary-table th:nth-child(9),.ro-summary-table td:nth-child(9){width:130px}th{font-size:11px;color:#59677a;background:#fbfcfe;font-weight:700}tbody tr:hover{background:#f7fbff;cursor:pointer}.ro-name{font-weight:700;color:#1c2b40}.muted{color:var(--muted)}.num{text-align:right}.product-ebms{color:#18ad40;font-weight:700}.product-hsd{color:#0396e5;font-weight:700}.product-speed{color:#e0b400;font-weight:800}.progress{height:7px;background:#edf1f6;border-radius:20px;overflow:hidden;min-width:75px}.progress span{display:block;height:100%;border-radius:20px;background:var(--green)}.detailhead{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin:8px 0 18px}.detailhead h2{margin:0;font-size:21px}.detailhead p{margin:4px 0 0;color:var(--muted);font-size:12px}.summarygrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.summarybox{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 2px 8px #162d4a08;overflow:hidden}.summarybox h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);font-size:13px}.summarybox table{min-width:0}.summarybox td,.summarybox th{padding:12px 14px}.note{padding:11px 15px;background:#eef6ff;border:1px solid #c8e0ff;color:#2366bd;border-radius:9px;font-size:12px;margin:16px 0}.tankgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:17px;margin-top:17px}.tank{background:#fff;border:1px solid #edf0f5;border-radius:17px;box-shadow:var(--shadow);padding:17px 16px 14px;cursor:pointer;transition:.15s}.tank:hover{transform:translateY(-2px);box-shadow:0 10px 24px #182b4518}.tanktop{display:flex;justify-content:space-between;gap:8px}.tanktitle{font-weight:750;font-size:13px}.tanktitle small{font-weight:500;color:#59677a}.tankproduct{font-size:11px;font-weight:700}.tankmeta{font-size:11px;color:#607086;margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}.tag{padding:4px 7px;border-radius:20px;background:#edf4ff;color:#2d64c8;font-weight:650}.gauge{width:94px;height:94px;border-radius:50%;margin:22px auto 18px;display:grid;place-items:center;background:conic-gradient(var(--gauge,#18bb43) calc(var(--pct,0)*1%),#9b9da0 0);position:relative}.gauge:before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--gauge,#18bb43) calc(var(--pct,0)*1%),#9b9da0 0);z-index:0}.gauge:after{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(transparent 0 100%);z-index:0}.gauge span{z-index:1;background:#fff;width:100%;height:100%;border-radius:50%;display:grid;place-items:center;color:white;font-size:13px;font-weight:700;text-shadow:0 1px 2px #444;clip-path:circle(50%);background:transparent}.tankstats{background:#f7f9fc;border-radius:12px;padding:11px 12px;display:grid;grid-template-columns:1fr 1fr;gap:12px}.statlabel{font-size:10px;color:#708096;margin-bottom:3px}.statvalue{font-size:13px;font-weight:700}.tankbottom{display:flex;justify-content:space-between;align-items:end;border-top:1px solid #edf1f5;margin-top:12px;padding-top:11px}.tankbottom .statvalue{font-size:11px;font-weight:600}.hourly{padding:15px 18px}.chart{height:190px;display:flex;align-items:end;gap:5px;border-bottom:1px solid #dce4ee;padding:10px 2px 0;overflow-x:auto}.barwrap{height:100%;min-width:23px;display:flex;flex-direction:column;justify-content:end;align-items:center;gap:5px}.bar{width:15px;min-height:2px;background:#19a5e8;border-radius:4px 4px 0 0;position:relative}.barwrap label{font-size:9px;color:#8290a2;white-space:nowrap}.barwrap small{font-size:8px;color:#627087}.empty{padding:38px 20px;text-align:center;color:#7b899c;font-size:13px}.hidden{display:none!important}.footer{text-align:center;color:#9aa6b5;font-size:10px;margin-top:25px}.modalback{position:fixed;inset:0;background:#14223866;display:grid;place-items:center;z-index:20;padding:15px}.modal{background:white;border-radius:16px;max-width:580px;width:100%;padding:22px;box-shadow:0 20px 60px #0003}.modal h3{margin:0 0 8px}.modal p{font-size:13px;color:#637187;line-height:1.5}.modalclose{float:right}.error{color:#bd3434}.small{font-size:11px;color:var(--muted)}@media(max-width:850px){main{padding:15px}.topbar{padding:13px 15px}.kpis{grid-template-columns:repeat(2,1fr)}.summarygrid{grid-template-columns:1fr}.brand h1{font-size:15px}}@media(max-width:480px){.actions .btn{padding:8px 10px}.kpis{grid-template-columns:1fr 1fr}.kpi .value{font-size:20px}}
+</style>
+<link rel="stylesheet" href="ui-refresh.css">
+<style>
+.ts-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#8392a8;margin-right:6px;vertical-align:middle}
+.ts-dot.on{background:#19b94b}.ts-dot.warn{background:#fcb813}
+.ts-drive.is-connected{background:#e8f6ee;color:#0e6b39}
+</style>
+</head>
+<body class="tank-stock-standalone">
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">BPCL</div>
+    <div>
+      <h1>Tank Stock Monitoring</h1>
+      <p>Automation • Southern Region • Belgaum Territory</p>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn ts-drive" id="tsSheetChip" type="button" title="Tank stock is read from the Google Sheet workbook (sheets: Last updated stock, Stock hourly, Onboarded tanks)"><span class="ts-dot"></span><span>Google Sheet · syncing…</span></button>
+    <button class="btn" id="tsSyncBtn" type="button">↻ Sync from Sheet</button>
+    <button class="btn primary" id="uploadBtn">Upload Excel files</button>
+    <input id="fileInput" type="file" accept=".xlsx,.xls" multiple hidden>
+  </div>
+</header>
+<main>
+  <div id="dashboardView">
+    <div class="toolbar">
+      <input id="search" placeholder="Search RO ID or Retail Outlet name...">
+      <select id="territory"><option value="">All Territories</option></select>
+      <select id="area"><option value="">All Sales Areas</option></select>
+      <select id="vendor"><option value="">All RA Vendors</option></select>
+      <select id="state"><option value="">All States</option></select>
+    </div>
+    <div class="statusline">
+      <span id="dataStatus">Connecting to Google Drive folder...</span>
+      <span id="updatedAt"></span>
+    </div>
+    <section class="kpis" id="kpis">
+      <div class="kpi"><div class="klabel">RETAIL OUTLETS</div><div class="value">—</div></div>
+      <div class="kpi"><div class="klabel">ONBOARDED TANKS</div><div class="value">—</div></div>
+      <div class="kpi"><div class="klabel">ONLINE TANKS</div><div class="value">—</div></div>
+      <div class="kpi"><div class="klabel">OFFLINE TANKS</div><div class="value">—</div></div>
+      <div class="kpi"><div class="klabel">LATEST STOCK RECORDS</div><div class="value">—</div></div>
+    </section>
+    <section class="panel">
+      <div class="panelhead">
+        <div>
+          <h2>RETAIL OUTLET STOCK SUMMARY</h2>
+          <small id="rowCount">0 outlets</small>
+        </div>
+        <div class="tank-view-toggle">
+          <button class="view-btn active" id="viewCardsBtn" type="button">📱 Cards</button>
+          <button class="view-btn" id="viewTableBtn" type="button">📋 Table</button>
+        </div>
+      </div>
+      <div class="tablewrap" id="roTableWrap">
+        <table class="ro-summary-table">
+          <thead>
+            <tr>
+              <th>RO ID</th>
+              <th>Retail Outlet</th>
+              <th>Territory / Sales Area</th>
+              <th>RA Vendor</th>
+              <th class="num">EBMS Stock (KL)</th>
+              <th class="num">HSD Stock (KL)</th>
+              <th class="num">Total Stock (KL)</th>
+              <th class="num">Tanks</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="roTable">
+            <tr><td colspan="9" class="empty">Loading tank stock records from Google Drive...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="ro-cards-wrap" id="roCardsWrap"></div>
+    </section>
+  </div>
+  <div id="detailView" class="hidden">
+    <div class="detailhead">
+      <div>
+        <h2 id="roTitle">Retail Outlet</h2>
+        <p id="roSubtitle"></p>
+      </div>
+      <button class="btn" id="backBtn">← Back to all ROs</button>
+    </div>
+    <div class="summarygrid" id="productSummaries"></div>
+    <div class="note">ⓘ Click any tank card to view its hourly stock history. Stock levels are based on the latest available source records.</div>
+    <div class="tankgrid" id="tankCards"></div>
+    <section class="panel hidden" id="hourlyPanel">
+      <div class="panelhead">
+        <h2 id="hourlyTitle">HOURLY STOCK TREND</h2>
+        <button class="btn" id="closeHourly">Close</button>
+      </div>
+      <div class="hourly">
+        <div class="small" id="hourlySubtitle"></div>
+        <div class="chart" id="hourlyChart"></div>
+      </div>
+    </section>
+  </div>
+  <div class="footer">BPCL Automation • Tank Stock Monitoring Dashboard • Data sourced from uploaded Excel workbooks</div>
+</main>
+
+<div id="tankModal" class="modalback hidden">
+  <div class="modal" style="max-width: 580px;">
+    <button class="btn modalclose" id="modalClose">✕</button>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+      <div style="width:36px; height:36px; border-radius:10px; background:#eaf4ff; display:grid; place-items:center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 4h7l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#1a73e8" fill-opacity="0.2" stroke="#1a73e8" stroke-width="2"/><path d="M9 13l2 2 4-4" stroke="#1a73e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <h3 style="margin:0; font-size:16px; color:#17243a;">Connect Google Drive Folder</h3>
+        <span style="font-size:12px; color:#718096;">Tank Stock Live Synchronization</span>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <span style="font-weight:700; font-size:13px; color:#1e293b;">📁 Folder: Test tanks status</span>
+        <span class="pill" id="gdriveStatusBadge" style="background:#e8f9ee; color:#16853c;">Ready to connect</span>
+      </div>
+      <div style="font-size:12px; color:#64748b; margin-bottom:8px;">
+        Google Drive Link: <a href="https://drive.google.com/open?id=17C1s0lqJ0jCZqc_xmRB2H_YGOro1pUk4&usp=drive_fs" target="_blank" style="color:#0284c7; text-decoration:none; word-break:break-all;">https://drive.google.com/open?id=17C1s0lqJ0jCZqc_xmRB2H_YGOro1pUk4&usp=drive_fs</a>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; font-family:monospace; font-size:11px; color:#334155;">
+        <span id="gdriveLocalPathText">G:\My Drive\TL-PATIL- 2026\Technology\Test tanks status</span>
+        <button class="btn" id="copyGdrivePathBtn" style="padding:4px 8px; font-size:11px; margin-left:8px;">📋 Copy Path</button>
+      </div>
+    </div>
+
+    <p style="font-size:12.5px; color:#475569; line-height:1.5; margin:0 0 14px;">
+      Select the local Google Drive folder or your synced folder containing:
+      <br>• <b>Stock hourly.xlsx</b> • <b>Last updated stock.xlsx</b> • <b>Onboarded tanks.xlsx</b>
+    </p>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+      <a href="https://drive.google.com/open?id=17C1s0lqJ0jCZqc_xmRB2H_YGOro1pUk4&usp=drive_fs" target="_blank" class="btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:5px;">
+        ↗ Open in Google Drive
+      </a>
+      <button class="btn primary" id="chooseFolderNow" style="background:#168cf0; color:white; font-weight:700;">
+        📁 Select 'Test tanks status' Folder
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="workbook_reader.js"></script>
+<script src="tank_stock.js"></script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; padding: 14px 16px; color: #0b2545; font-size: 13px; }
+  h2 { margin: 0 0 4px; font-size: 16px; color: #0b3a6f; }
+  .sub { color: #5b6b80; margin-bottom: 12px; line-height: 1.4; }
+  .drop { border: 2px dashed #f5b400; border-radius: 10px; padding: 18px; text-align: center; background: #fffbea; cursor: pointer; }
+  .drop b { color: #0b3a6f; }
+  .drop input { display: none; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid #e3e8ef; }
+  th { background: #0b3a6f; color: #fff; font-weight: 600; font-size: 12px; }
+  .ok { color: #13803b; font-weight: 600; } .err { color: #c62828; font-weight: 600; } .muted { color: #7a8796; }
+  label.opt { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; line-height: 1.35; }
+  .bar { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  button { border: 0; border-radius: 8px; padding: 9px 16px; font-weight: 700; cursor: pointer; font-size: 13px; }
+  #go { background: #f5b400; color: #0b2545; } #go:disabled { opacity: .5; cursor: default; }
+  #close { background: #e7ecf3; color: #0b2545; }
+  #msg { margin-top: 10px; min-height: 18px; }
+</style>
+</head>
+<body>
+  <h2>Update Automation data</h2>
+  <div class="sub">Select the Power BI exports — any or all of: <b>Uptime</b>, <b>Last updated stock</b>, <b>Stock hourly</b>, <b>Onboarded tanks</b>.
+    Each file is matched to its tab by its columns, so file names don't matter.</div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="files" accept=".xlsx,.xls" multiple>
+    <b>Click to choose Excel files</b><br><span class="muted">or drag &amp; drop them here</span>
+  </label>
+
+  <table id="tbl" style="display:none">
+    <thead><tr><th>File</th><th>Goes to tab</th><th>Rows</th><th>Status</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <label class="opt" style="display:block">
+    <b>Territories to keep</b> <span class="muted">(comma separated — leave empty for all India)</span><br>
+    <input type="text" id="terr" style="width:100%;margin-top:5px;padding:7px 9px;border:1px solid #c9d3df;border-radius:7px;font-size:13px" placeholder="e.g. Belgaum, Hubli">
+    <span class="muted" id="terrHint" style="font-size:12px"></span>
+  </label>
+
+  <label class="opt"><input type="checkbox" id="keep" checked>
+    <span>Keep only outlets that are in the <b>Uptime</b> tab (recommended — keeps the sheet small and the dashboard fast)</span></label>
+
+  <div id="msg" class="muted"></div>
+  <div class="bar">
+    <button id="close" onclick="google.script.host.close()">Close</button>
+    <button id="go" disabled>Update Google Sheet</button>
+  </div>
+
+<script>
+/* ===== PREPARE (shared logic — same rules as Code.gs) ===== */
+function detectKind(header, fileName) {
+  var h = header.map(function (x) { return String(x == null ? '' : x).trim().toLowerCase(); });
+  var has = function (t) { return h.indexOf(t) >= 0; };
+  if (has('no. of on-boarded mpds') || has('avg ro utilization %')) return 'uptime';
+  if (h.some(function (x) { return /^12 am %$/.test(x); })) return 'hourly';
+  if (has('local tank id') || has('morning_status')) return 'onboarded';
+  if (has('stock %') && has('date')) return 'last';
+  var n = String(fileName || '').toLowerCase();
+  if (/uptime/.test(n)) return 'uptime';
+  if (/hourly/.test(n)) return 'hourly';
+  if (/onboard/.test(n)) return 'onboarded';
+  if (/last|latest/.test(n)) return 'last';
+  return null;
+}
+
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+/** First sheet of an xlsx → array of rows (raw values; cell formats in Power BI exports are unreliable) */
+function sheetToRows(XLSX, buf) {
+  var wb = XLSX.read(buf, { type: 'array' });
+  var ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws || !ws['!ref']) return [];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+}
+
+/** Excel serial numbers → text, decided by column name (same rule the dashboard uses) */
+function serialToText(v, kind) {
+  if (kind === 'time') {
+    var s = Math.round(v * 86400) % 86400;
+    return pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60);
+  }
+  var d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+  return d.getUTCFullYear() + '-' + pad2(d.getUTCMonth() + 1) + '-' + pad2(d.getUTCDate());
+}
+function dateKindOf(head) {
+  var h = String(head).trim();
+  if (/time$/i.test(h)) return 'time';
+  if (/(date|updated)/i.test(h)) return 'date';
+  return null;
+}
+
+function territorySet(text) {
+  var list = String(text || '').split(',').map(function (s) { return s.trim().toLowerCase(); }).filter(String);
+  if (!list.length) return null;
+  var set = {}; list.forEach(function (t) { set[t] = true; }); return set;
+}
+
+function roKey(v) { return String(v == null ? '' : v).trim().replace(/\.0+$/, ''); }
+
+/** Removes Power BI footer rows, keeps only RO rows (optionally only ROs in roSet), finds text columns */
+function cleanRows(aoa, roSet, terrSet) {
+  var header = (aoa[0] || []).map(function (x) { return String(x == null ? '' : x); });
+  while (header.length && header[header.length - 1] === '') header.pop();
+  var roCol = header.map(function (x) { return x.trim().toLowerCase(); })
+    .findIndex(function (x) { return x === 'ro id' || x === 'roid'; });
+  if (roCol < 0) roCol = 0;
+  var terrCol = header.map(function (x) { return x.trim().toLowerCase(); }).indexOf('territory');
+  var dk_ = header.map(dateKindOf);
+  var rows = [];
+  for (var i = 1; i < aoa.length; i++) {
+    var r = aoa[i] || [], ro = roKey(r[roCol]);
+    if (!/^\d{3,10}$/.test(ro)) continue;
+    if (roSet && !roSet[ro]) continue;
+    if (terrSet && terrCol >= 0 && !terrSet[String(r[terrCol] || '').trim().toLowerCase()]) continue;
+    var row = [];
+    for (var c = 0; c < header.length; c++) {
+      var v = r[c] == null ? '' : r[c], dk = dk_[c];
+      if (typeof v === 'number' && dk === 'time' && v >= 0 && v < 1) v = serialToText(v, 'time');
+      else if (typeof v === 'number' && dk === 'date' && v > 20000 && v < 80000) v = serialToText(v, 'date');
+      row.push(v);
+    }
+    rows.push(row);
+  }
+  var textCols = [];
+  for (var c2 = 0; c2 < header.length; c2++) {
+    for (var j = 0; j < rows.length; j++) {
+      if (typeof rows[j][c2] === 'string' && rows[j][c2] !== '') { textCols.push(c2); break; }
+    }
+  }
+  return { header: header, rows: rows, textCols: textCols, roCol: roCol };
+}
+if (typeof module !== 'undefined') module.exports = { detectKind: detectKind, sheetToRows: sheetToRows, cleanRows: cleanRows };
+/* ===== END PREPARE ===== */
+</script>
+
+<script>
+var ctx = null, items = [];
+var ORDER = { uptime: 0, last: 1, hourly: 2, onboarded: 3 };
+var CHUNK = 4000;
+
+function $(id) { return document.getElementById(id); }
+function msg(t, cls) { $('msg').className = cls || 'muted'; $('msg').innerHTML = t; }
+function run(fn) {
+  var args = [].slice.call(arguments, 1);
+  return new Promise(function (res, rej) {
+    var r = google.script.run.withSuccessHandler(res).withFailureHandler(rej);
+    r[fn].apply(r, args);
+  });
+}
+
+run('getImportContext').then(function (c) { ctx = c; $('keep').checked = c.keepOnlyUptimeRos; $('terr').value = c.territories || ''; })
+  .catch(function (e) { msg('Could not read settings: ' + e.message, 'err'); });
+
+$('files').addEventListener('change', function (e) { addFiles(e.target.files); });
+var drop = $('drop');
+['dragover', 'dragenter'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.style.background = '#fff3c4'; }); });
+['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function () { drop.style.background = ''; }); });
+drop.addEventListener('drop', function (e) { e.preventDefault(); addFiles(e.dataTransfer.files); });
+
+function addFiles(list) {
+  if (!window.XLSX) { msg('Excel reader did not load — check the internet connection and reopen this dialog.', 'err'); return; }
+  msg('Reading files…');
+  var jobs = [].map.call(list, function (f) {
+    return f.arrayBuffer().then(function (buf) {
+      var aoa = sheetToRows(XLSX, new Uint8Array(buf));
+      var kind = detectKind(aoa[0] || [], f.name);
+      return { name: f.name, kind: kind, aoa: aoa };
+    }).catch(function (err) { return { name: f.name, kind: null, error: err.message }; });
+  });
+  Promise.all(jobs).then(function (res) {
+    res.forEach(function (it) {
+      items = items.filter(function (x) { return !(it.kind && x.kind === it.kind); }); // newer file of the same type wins
+      items.push(it);
+    });
+    items.sort(function (a, b) { return (ORDER[a.kind] ?? 9) - (ORDER[b.kind] ?? 9); });
+    draw();
+    var upItem = items.filter(function (x) { return x.kind === 'uptime'; })[0];
+    if (upItem) {
+      var hc = (upItem.aoa[0] || []).map(function (x) { return String(x).trim().toLowerCase(); }).indexOf('territory');
+      var seen = {};
+      upItem.aoa.slice(1).forEach(function (r) { var t = String(r[hc] || '').trim(); if (t && /^\d{3,10}$/.test(roKey(r[0]))) seen[t] = (seen[t] || 0) + 1; });
+      var names = Object.keys(seen).sort();
+      $('terrHint').textContent = names.length ? names.length + ' territories in this Uptime file' + (names.length <= 12 ? ': ' + names.join(', ') : '') : '';
+    }
+    var good = items.filter(function (x) { return x.kind; }).length;
+    $('go').disabled = !good;
+    msg(good ? good + ' file(s) ready. Press <b>Update Google Sheet</b>.' : 'No recognised files.', good ? 'muted' : 'err');
+  });
+}
+
+function draw() {
+  $('tbl').style.display = items.length ? '' : 'none';
+  $('tbl').querySelector('tbody').innerHTML = items.map(function (it, i) {
+    var rows = it.aoa ? Math.max(0, it.aoa.length - 1) : 0;
+    return '<tr><td>' + esc(it.name) + '</td><td>' + (it.kind ? '<b>' + esc(ctx ? ctx.tabs[it.kind] : it.kind) + '</b>' : '<span class="err">not recognised</span>') +
+      '</td><td id="n' + i + '">' + rows.toLocaleString() + '</td><td id="s' + i + '">' + (it.error ? '<span class="err">' + esc(it.error) + '</span>' : (it.status || '<span class="muted">waiting</span>')) + '</td></tr>';
+  }).join('');
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function setStatus(i, html) { items[i].status = html; var el = $('s' + i); if (el) el.innerHTML = html; }
+
+$('go').addEventListener('click', function () {
+  $('go').disabled = true; $('files').disabled = true;
+  var keep = $('keep').checked, roSet = null;
+  var terrText = $('terr').value.trim(), terrSet = territorySet(terrText);
+  run('saveTerritories', terrText).catch(function () {});
+  var up = items.filter(function (x) { return x.kind === 'uptime'; })[0];
+  var ids = ctx ? ctx.uptimeRoIds : [];
+  if (up) {
+    var cu = cleanRows(up.aoa, null, terrSet);
+    if (!cu.rows.length && terrSet) { msg('No outlets in the Uptime file for territory "' + esc(terrText) + '". Check the spelling.', 'err'); $('go').disabled = false; $('files').disabled = false; return; }
+    ids = cu.rows.map(function (r) { return roKey(r[cu.roCol]); });
+  }
+  if (keep && ids.length) { roSet = {}; ids.forEach(function (id) { roSet[String(id).trim()] = true; }); }
+  if (keep && !ids.length) msg('Uptime tab is empty, so all outlets are kept this time.', 'muted');
+
+  var chain = Promise.resolve(), t0 = Date.now();
+  items.forEach(function (it, i) {
+    if (!it.kind) return;
+    chain = chain.then(function () {
+      var c = it.kind === 'uptime' ? cleanRows(it.aoa, null, terrSet)
+                                   : cleanRows(it.aoa, roSet, roSet ? null : terrSet);
+      $('n' + i).textContent = c.rows.length.toLocaleString();
+      setStatus(i, 'uploading…');
+      var p = Promise.resolve(0);
+      if (!c.rows.length) p = run('writeChunk', it.kind, c.header, [], 0, 0, c.textCols);
+      for (var s = 0; s < c.rows.length; s += CHUNK) {
+        (function (start) {
+          p = p.then(function () {
+            setStatus(i, 'uploading ' + Math.round(start / c.rows.length * 100) + '%');
+            return run('writeChunk', it.kind, c.header, c.rows.slice(start, start + CHUNK), start, c.rows.length, c.textCols);
+          });
+        })(s);
+      }
+      return p.then(function () { setStatus(i, '<span class="ok">✓ updated</span>'); })
+              .catch(function (e) { setStatus(i, '<span class="err">' + esc(e.message || e) + '</span>'); throw e; });
+    });
+  });
+  chain.then(function () {
+    msg('<span class="ok">Done in ' + Math.round((Date.now() - t0) / 1000) + ' s.</span> The dashboard will show the new data on its next sync (Google may take up to 5 min to publish).', '');
+    $('close').textContent = 'Done';
+  }).catch(function () {
+    msg('Some files failed — see the Status column. Fix and try again.', 'err');
+    $('go').disabled = false; $('files').disabled = false;
+  });
+});
+</script>
+</body>
+</html>
