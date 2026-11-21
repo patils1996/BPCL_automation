@@ -132,6 +132,7 @@
     if (id === 'tab-performance-trend' && window.loadUploadHistory) window.loadUploadHistory();
     if (id === 'tab-monitoring' && window.renderMonitoringComparison) window.renderMonitoringComparison();
     if (id === 'tab-comparison' && window.render3DayComparison) window.render3DayComparison({ reload: true });
+    if (id === 'tab-tank-stock' && window.TankStock && window.TankStock.onScopeChange) window.TankStock.onScopeChange();
     if (window.showToast) window.showToast(selected.length ? 'Territory: ' + selected.join(', ') + ' — applied to all menus' : 'Showing all territories', 'success');
   }
 

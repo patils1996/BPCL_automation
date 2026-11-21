@@ -340,6 +340,10 @@
     data.onboarded.forEach(r => {
       if (!r._ro) return;
       let x = ensure(r._ro, r);
+      if (!x.territory && (r.Territory || r.territory)) x.territory = r.Territory || r.territory;
+      if (!x.area && (r.Salesarea || r['Sales Area'] || r.sales_area)) x.area = r.Salesarea || r['Sales Area'] || r.sales_area;
+      if (!x.vendor && (r.RA_Vendor || r['RA Vendor'] || r.vendor)) x.vendor = r.RA_Vendor || r['RA Vendor'] || r.vendor;
+      if (!x.state && (r.State || r.state)) x.state = r.State || r.state;
       x.tanks.push(r);
       let st = key(r.Status);
       if (st === 'ONLINE') x.online++;
@@ -348,6 +352,10 @@
     data.latest.forEach(r => {
       if (!r._ro) return;
       let x = ensure(r._ro, r);
+      if (!x.territory && (r.Territory || r.territory)) x.territory = r.Territory || r.territory;
+      if (!x.area && (r['Sales Area'] || r.Salesarea || r.sales_area)) x.area = r['Sales Area'] || r.Salesarea || r.sales_area;
+      if (!x.vendor && (r['RA Vendor'] || r.RA_Vendor || r.vendor)) x.vendor = r['RA Vendor'] || r.RA_Vendor || r.vendor;
+      if (!x.state && (r.State || r.state)) x.state = r.State || r.state;
       x.latest.push(r);
       let p = key(r['Product Name']);
       let stock = num(r.Stock) || 0;
@@ -358,6 +366,10 @@
     data.hourly.forEach(r => {
       if (!r._ro) return;
       let x = ensure(r._ro, r);
+      if (!x.territory && (r.Territory || r.territory)) x.territory = r.Territory || r.territory;
+      if (!x.area && (r['Sales Area'] || r.Salesarea || r.sales_area)) x.area = r['Sales Area'] || r.Salesarea || r.sales_area;
+      if (!x.vendor && (r['RA Vendor'] || r.RA_Vendor || r.vendor)) x.vendor = r['RA Vendor'] || r.RA_Vendor || r.vendor;
+      if (!x.state && (r.State || r.state)) x.state = r.State || r.state;
       if (!x.tanks.some(t => String(t._tank || t['Local tank id'] || '').replace(/\.0+$/, '') === String(r._tank || '').replace(/\.0+$/, ''))) {
         x.tanks.push({
           ROID: r._ro,
@@ -375,47 +387,91 @@
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  function fillFilters() {
-    const fields = [['territory', 'territory'], ['area', 'area'], ['vendor', 'vendor'], ['state', 'state']];
+  function fillTerritoryFilter() {
+    const el = $('territory');
+    if (!el) return;
+    const cur = window.MS ? MS.vals(el) : (el.value ? [el.value] : []);
+    let vals = [...new Set(allRO.map(r => r.territory).filter(Boolean))].sort();
+    if (window.GlobalScope) {
+      GlobalScope.registerTerritories(vals);
+      vals = [...new Set(vals.concat(GlobalScope.territories()))].sort();
+    }
+    let active = cur.length ? cur : (window.GlobalScope && GlobalScope.active() ? GlobalScope.get() : []);
+    active = active.filter(v => vals.includes(v));
+
+    el.innerHTML = '<option value="">All Territories</option>' + vals.map(v => `<option value="${esc(v)}"${active.includes(v) ? ' selected' : ''}>${esc(v)}</option>`).join('');
+    if (window.MS) {
+      MS.set(el, active);
+    } else {
+      el.value = active[0] || '';
+    }
+  }
+
+  function updateDependentFilters() {
+    const terrEl = $('territory');
+    const pick = el => !el ? [] : (window.MS ? MS.vals(el) : (el.value ? [el.value] : []));
+    let territory = pick(terrEl);
+    if (!territory.length && window.GlobalScope && GlobalScope.active()) {
+      territory = GlobalScope.get();
+    }
+    const inSet = (arr, v) => !arr || !arr.length || arr.map(x => String(x).trim()).includes(String(v == null ? '' : v).trim());
+    
+    // Filter outlets belonging to the selected territory scope
+    const scopedROs = allRO.filter(r => (territory.length ? inSet(territory, r.territory) : (!window.GlobalScope || GlobalScope.match(r.territory))));
+
+    const fields = [['area', 'area'], ['vendor', 'vendor'], ['state', 'state']];
     fields.forEach(([id, k]) => {
       const el = $(id);
       if (!el) return;
-      const old = el.value;
-      let vals = [...new Set(allRO.map(r => r[k]).filter(Boolean))].sort();
-      if (id === 'territory' && window.GlobalScope) {
-        // share territory options with the global (all-menus) territory filter
-        GlobalScope.registerTerritories(vals);
-        vals = [...new Set(vals.concat(GlobalScope.territories()))].sort();
+      const curSelected = pick(el);
+      const available = [...new Set(scopedROs.map(r => r[k]).filter(Boolean))].sort();
+      const validSelected = curSelected.filter(v => available.includes(v));
+      const label = { area: 'Sales Areas', vendor: 'RA Vendors', state: 'States' }[id] || (k.charAt(0).toUpperCase() + k.slice(1) + 's');
+
+      el.innerHTML = `<option value="">All ${label}</option>` + available.map(v => `<option value="${esc(v)}"${validSelected.includes(v) ? ' selected' : ''}>${esc(v)}</option>`).join('');
+      
+      if (window.MS) {
+        MS.set(el, validSelected);
+      } else {
+        el.value = validSelected[0] || '';
       }
-      const label = { territory: 'Territories', area: 'Sales Areas', vendor: 'RA Vendors', state: 'States' }[id] || (k.charAt(0).toUpperCase() + k.slice(1) + 's');
-      el.innerHTML = `<option value="">All ${label}</option>` + vals.map(v => `<option value="${esc(v)}"${v === old ? ' selected' : ''}>${esc(v)}</option>`).join('');
-      if (id === 'territory' && window.GlobalScope && window.MS) MS.set(el, GlobalScope.get());
     });
+  }
+
+  function updateKPIs(rows) {
+    const kpisEl = $('kpis');
+    if (!kpisEl) return;
+    let totalT = 0, on = 0, off = 0, latestCount = 0;
+    rows.forEach(r => {
+      totalT += r.tanks.length;
+      on += r.online;
+      off += r.offline;
+      latestCount += (r.latest ? r.latest.length : 0);
+    });
+    const onPct = totalT ? on / totalT * 100 : 0;
+    const offPct = totalT ? off / totalT * 100 : 0;
+    const isFiltered = rows.length !== allRO.length;
+
+    kpisEl.innerHTML = [
+      ['Retail Outlets', rows.length, isFiltered ? `${rows.length.toLocaleString()} in selection` : 'Unique RO IDs', 'navy', null],
+      ['Onboarded Tanks', totalT, isFiltered ? `${totalT.toLocaleString()} in selection` : 'Tank records', 'blue', null],
+      ['Online Tanks', on, totalT ? `${onPct.toFixed(1)}% online` : 'Status marked Online', 'green', onPct],
+      ['Offline Tanks', off, totalT ? `${offPct.toFixed(1)}% offline` : 'Status marked Offline', 'red', null],
+      ['Latest Stock Records', latestCount, isFiltered ? `${latestCount.toLocaleString()} in selection` : 'Product-level records', 'yellow', null]
+    ].map(([label, val, sub, tone, bar]) => `
+      <div class="kpi ts-tone-${tone}">
+        <div class="klabel">${label}</div>
+        <div class="value">${Number(val || 0).toLocaleString('en-IN')}</div>
+        ${sub ? `<div class="sub">${sub}</div>` : ''}
+        ${bar != null ? `<div class="ts-kbar"><span style="width:${Math.max(0, Math.min(100, bar)).toFixed(1)}%"></span></div>` : ''}
+      </div>
+    `).join('');
   }
 
   function renderDashboard() {
     allRO = groupByRO();
-    fillFilters();
-    let totalT = 0, on = 0, off = 0;
-    allRO.forEach(r => { totalT += r.tanks.length; on += r.online; off += r.offline; });
-    const kpisEl = $('kpis');
-    if (kpisEl) {
-      const onPct = totalT ? on / totalT * 100 : 0;
-      kpisEl.innerHTML = [
-        ['Retail Outlets', allRO.length, 'Unique RO IDs', 'navy', null],
-        ['Onboarded Tanks', totalT, 'Tank records', 'blue', null],
-        ['Online Tanks', on, totalT ? `${onPct.toFixed(1)}% online` : 'Status marked Online', 'green', onPct],
-        ['Offline Tanks', off, totalT ? `${(off / totalT * 100).toFixed(1)}% offline` : 'Status marked Offline', 'red', null],
-        ['Latest Stock Records', data.latest.length, 'Product-level records', 'yellow', null]
-      ].map(([label, val, sub, tone, bar]) => `
-        <div class="kpi ts-tone-${tone}">
-          <div class="klabel">${label}</div>
-          <div class="value">${Number(val || 0).toLocaleString('en-IN')}</div>
-          ${sub ? `<div class="sub">${sub}</div>` : ''}
-          ${bar != null ? `<div class="ts-kbar"><span style="width:${Math.max(0, Math.min(100, bar)).toFixed(1)}%"></span></div>` : ''}
-        </div>
-      `).join('');
-    }
+    fillTerritoryFilter();
+    updateDependentFilters();
     drawROTable();
   }
 
@@ -443,10 +499,13 @@
     const searchEl = $('search'), terrEl = $('territory'), areaEl = $('area'), vendEl = $('vendor'), stateEl = $('state');
     if (!searchEl) return;
     const pick = el => !el ? [] : (window.MS ? MS.vals(el) : (el.value ? [el.value] : []));
-    const inSet = (arr, v) => !arr.length || arr.includes(String(v || ''));
+    const inSet = (arr, v) => !arr || !arr.length || arr.map(x => String(x).trim()).includes(String(v == null ? '' : v).trim());
     const q = key(searchEl.value), territory = pick(terrEl), area = pick(areaEl), vendor = pick(vendEl), state = pick(stateEl);
-    let rows = allRO.filter(r => (!q || r.id.includes(q) || key(r.name).includes(q)) && inSet(territory, r.territory) && (!window.GlobalScope || GlobalScope.match(r.territory)) && inSet(area, r.area) && inSet(vendor, r.vendor) && inSet(state, r.state));
+    let rows = allRO.filter(r => (!q || r.id.includes(q) || key(r.name).includes(q)) && (territory.length ? inSet(territory, r.territory) : (!window.GlobalScope || GlobalScope.match(r.territory))) && inSet(area, r.area) && inSet(vendor, r.vendor) && inSet(state, r.state));
     
+    // Dynamically update KPIs matching current filter selection
+    updateKPIs(rows);
+
     // Pagination to prevent mobile browser crash on thousands of outlets
     const TS_PAGE_SIZE = 40;
     let page = window._tsPage || 1;
@@ -785,9 +844,21 @@
     };
     setViewMode((typeof window !== 'undefined' && window.innerWidth <= 768) ? 'cards' : 'table');
 
-    ['search', 'territory', 'area', 'vendor', 'state'].forEach(id => {
+    const terrEl = $('territory');
+    if (terrEl) {
+      terrEl.addEventListener('change', () => {
+        window._tsPage = 1;
+        updateDependentFilters();
+        drawROTable();
+      });
+    }
+
+    ['search', 'area', 'vendor', 'state'].forEach(id => {
       const el = $(id);
-      if (el) el.addEventListener(id === 'search' ? 'input' : 'change', drawROTable);
+      if (el) el.addEventListener(id === 'search' ? 'input' : 'change', () => {
+        window._tsPage = 1;
+        drawROTable();
+      });
     });
 
     // Data source: the Google Sheet workbook (shared sync in the main app).
@@ -884,14 +955,39 @@
     return u;
   }
 
-  window.TankStock = { ingestSheets, markSynced, markLoading, markSyncError, syncFromSheet, refreshLookup };
+  function onScopeChange() {
+    const terrEl = $('territory');
+    if (terrEl && window.GlobalScope) {
+      const gVals = GlobalScope.get();
+      if (window.MS) MS.set(terrEl, gVals);
+      else terrEl.value = gVals[0] || '';
+    }
+    window._tsPage = 1;
+    updateDependentFilters();
+    drawROTable();
+  }
+
+  window.TankStock = { ingestSheets, markSynced, markLoading, markSyncError, syncFromSheet, refreshLookup, onScopeChange };
 
   window.initTankStockDashboard = function() {
     // Events and Drive auto-connect run once; re-opening the menu only refreshes the view
     if (!tankInitDone) { initEvents(); return; }
     if (!sessionStorage.getItem('bpcl_tank_view_manual')) setViewMode(window.innerWidth <= 768 ? 'cards' : 'table');
     if (renderPending) { renderPending = false; renderDashboard(); }
-    else if (allRO && allRO.length) drawROTable();
+    else if (allRO && allRO.length) {
+      const terrEl = $('territory');
+      if (terrEl && window.GlobalScope) {
+        const gVals = GlobalScope.get();
+        const curVals = window.MS ? MS.vals(terrEl) : (terrEl.value ? [terrEl.value] : []);
+        const same = gVals.length === curVals.length && gVals.every(x => curVals.includes(x));
+        if (!same) {
+          if (window.MS) MS.set(terrEl, gVals);
+          else terrEl.value = gVals[0] || '';
+          updateDependentFilters();
+        }
+      }
+      drawROTable();
+    }
     if (!data.latest.length && window.__sheetSync && !window.__sheetSync.busy && !window.__sheetSync.at) syncFromSheet(true);
   };
 
